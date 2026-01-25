@@ -1,0 +1,104 @@
+import { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { getDb } from "@/db";
+import { users, accounts, sessions, verificationTokens } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
+import type { UserRole } from "@/types/auth.types";
+
+declare module "next-auth" {
+  interface Session {
+    user: { id: string; email: string; name?: string | null; image?: string | null; role: UserRole }
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT { id: string; role: UserRole }
+}
+
+export async function getAuthOptions(): Promise<NextAuthOptions> {
+  const db = await getDb();
+
+  return {
+    adapter: DrizzleAdapter(db, {
+      usersTable: users,
+      accountsTable: accounts,
+      sessionsTable: sessions,
+      verificationTokensTable: verificationTokens,
+    }),
+    session: { strategy: "jwt" },
+    providers: [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      }),
+      CredentialsProvider({
+        credentials: {
+          email: { type: "email" },
+          password: { type: "password" }
+        },
+        async authorize(credentials) {
+          if (!credentials?.email || !credentials?.password) return null;
+
+          const db = await getDb();
+          const user = await db.select().from(users)
+            .where(eq(users.email, credentials.email))
+            .limit(1).then(r => r[0]);
+
+          if (!user?.password || !await bcrypt.compare(credentials.password, user.password)) return null;
+
+          return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role as UserRole };
+        },
+      }),
+    ],
+    callbacks: {
+      jwt: async ({ token, user, trigger }) => {
+        if (user) {
+          token.id = user.id;
+          // For credentials provider, role comes from authorize()
+          // For OAuth, we need to fetch from DB
+          if ('role' in user && user.role) {
+            token.role = user.role as UserRole;
+          } else {
+            // Fetch role from DB for OAuth users
+            const dbUser = await db.select({ role: users.role }).from(users)
+              .where(eq(users.id, user.id))
+              .limit(1).then(r => r[0]);
+            token.role = (dbUser?.role as UserRole) || 'student';
+          }
+        }
+        // Refresh role from DB on session update
+        if (trigger === 'update' && token.id) {
+          const dbUser = await db.select({ role: users.role }).from(users)
+            .where(eq(users.id, token.id))
+            .limit(1).then(r => r[0]);
+          if (dbUser) token.role = dbUser.role as UserRole;
+        }
+        return token;
+      },
+      session: ({ session, token }) => {
+        session.user.id = token.id;
+        session.user.role = token.role;
+        return session;
+      },
+    },
+    pages: { signIn: "/auth/signin" },
+  };
+}
+
+export const createUser = async (email: string, password: string, name?: string) => {
+  const db = await getDb();
+  const userId = nanoid();
+
+  const [user] = await db.insert(users).values({
+    id: userId,
+    email,
+    password: await bcrypt.hash(password, 12),
+    name,
+  }).returning();
+
+  return user;
+};

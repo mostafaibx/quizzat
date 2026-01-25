@@ -1,0 +1,87 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quizat",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-12-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "minify": true,
+
+  // Assets configuration
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  // D1 Database binding
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quizat-db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ],
+
+  // R2 Bucket for file storage
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "quizat-files"
+    }
+  ],
+
+  // KV Namespace for Next.js incremental cache
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "YOUR_KV_NAMESPACE_ID"
+    }
+  ],
+
+  // Environment-specific configurations
+  "env": {
+    "preview": {
+      "name": "quizat-preview",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "quizat-db-preview",
+          "database_id": "YOUR_PREVIEW_D1_DATABASE_ID"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "quizat-files-preview"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "NEXT_INC_CACHE_KV",
+          "id": "YOUR_PREVIEW_KV_NAMESPACE_ID"
+        }
+      ]
+    },
+    "production": {
+      "name": "quizat",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "quizat-db",
+          "database_id": "YOUR_PRODUCTION_D1_DATABASE_ID"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "quizat-files"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "NEXT_INC_CACHE_KV",
+          "id": "YOUR_PRODUCTION_KV_NAMESPACE_ID"
+        }
+      ]
+    }
+  }
+}
