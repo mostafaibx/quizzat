@@ -6,6 +6,15 @@
   "compatibility_flags": ["nodejs_compat"],
   "minify": true,
 
+  // Environment variables (set via wrangler secret or dashboard for sensitive values)
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "",
+    "R2_BUCKET_NAME": "quizat-eg-files",
+    "R2_PUBLIC_URL": ""
+    // GCP_PROJECT_ID, GCP_PUBSUB_TOPIC, GCP_SERVICE_ACCOUNT_KEY, ENCODING_WEBHOOK_SECRET
+    // should be set via wrangler secret for security
+  },
+
   // Assets configuration
   "assets": {
     "directory": ".open-next/assets",
@@ -16,8 +25,9 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "quizat-db",
-      "database_id": "YOUR_D1_DATABASE_ID"
+      "database_name": "quizat-eg-db",
+      "database_id": "5da350e2-f8ab-4747-88ca-09b2244d023a",
+      "migrations_dir": "src/db/migrations"
     }
   ],
 
@@ -25,7 +35,7 @@
   "r2_buckets": [
     {
       "binding": "FILES",
-      "bucket_name": "quizat-files"
+      "bucket_name": "quizat-eg-files"
     }
   ],
 
@@ -33,7 +43,7 @@
   "kv_namespaces": [
     {
       "binding": "NEXT_INC_CACHE_KV",
-      "id": "YOUR_KV_NAMESPACE_ID"
+      "id": "c8a30ac6dd394df29a769ffa5440d569"
     }
   ],
 
@@ -44,20 +54,21 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "quizat-db-preview",
-          "database_id": "YOUR_PREVIEW_D1_DATABASE_ID"
+          "database_name": "quizat-eg-db",
+          "database_id": "5da350e2-f8ab-4747-88ca-09b2244d023a",
+          "migrations_dir": "src/db/migrations"
         }
       ],
       "r2_buckets": [
         {
           "binding": "FILES",
-          "bucket_name": "quizat-files-preview"
+          "bucket_name": "quizat-eg-files"
         }
       ],
       "kv_namespaces": [
         {
           "binding": "NEXT_INC_CACHE_KV",
-          "id": "YOUR_PREVIEW_KV_NAMESPACE_ID"
+          "id": "c8a30ac6dd394df29a769ffa5440d569"
         }
       ]
     },
@@ -66,20 +77,21 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_name": "quizat-db",
-          "database_id": "YOUR_PRODUCTION_D1_DATABASE_ID"
+          "database_name": "quizat-eg-db",
+          "database_id": "5da350e2-f8ab-4747-88ca-09b2244d023a",
+          "migrations_dir": "src/db/migrations"
         }
       ],
       "r2_buckets": [
         {
           "binding": "FILES",
-          "bucket_name": "quizat-files"
+          "bucket_name": "quizat-eg-files"
         }
       ],
       "kv_namespaces": [
         {
           "binding": "NEXT_INC_CACHE_KV",
-          "id": "YOUR_PRODUCTION_KV_NAMESPACE_ID"
+          "id": "c8a30ac6dd394df29a769ffa5440d569"
         }
       ]
     }

@@ -11,3 +11,4 @@ export {
   AdminOnly,
   StudentOnly,
 } from "./role-gate";
+export { UnauthorizedAlert } from "./unauthorized-alert";

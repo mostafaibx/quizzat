@@ -4,6 +4,10 @@ import { logger } from 'hono/logger';
 import { NextRequest } from 'next/server';
 import { errorHandler, ApiErrors } from './middleware/error';
 import type { HonoEnv } from '@/types/cloudflare';
+import videosRoutes from './routes/videos';
+import modulesRoutes from './routes/modules';
+import enrollmentsRoutes from './routes/enrollments';
+import encodingRoutes from './routes/encoding';
 
 const app = new Hono<HonoEnv>().basePath('/api')
 
@@ -28,12 +32,14 @@ app.use('/api/*', cors({
 }));
 
 // Health check
-app.get('/api/health', (c) => c.json({ status: 'ok' }));
+app.get('/health', (c) => c.json({ status: 'ok' }));
 
-// Mount routes here as you add them
-// Example:
-// import user from './routes/user';
-// app.route('/user', user);
+// Mount routes and capture for type inference
+const routes = app
+  .route('/', videosRoutes)
+  .route('/', modulesRoutes)
+  .route('/', enrollmentsRoutes)
+  .route('/', encodingRoutes);
 
 // 404 handler
 app.notFound(() => {
@@ -44,6 +50,9 @@ app.notFound(() => {
 app.onError(errorHandler);
 
 export default app;
+
+// Export AppType for RPC client type inference
+export type AppType = typeof routes;
 
 // Export error utilities for use in routes
 export { ApiErrors } from './middleware/error';

@@ -1,0 +1,378 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "0001_video_r2_encoding",
+  "prevId": "0000_modern_blob",
+  "tables": {
+    "accounts": {
+      "name": "accounts",
+      "columns": {
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "type": { "name": "type", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "provider": { "name": "provider", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "provider_account_id": { "name": "provider_account_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "refresh_token": { "name": "refresh_token", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "access_token": { "name": "access_token", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "expires_at": { "name": "expires_at", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "token_type": { "name": "token_type", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "scope": { "name": "scope", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "id_token": { "name": "id_token", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "session_state": { "name": "session_state", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "accounts_user_id_users_id_fk": {
+          "name": "accounts_user_id_users_id_fk",
+          "tableFrom": "accounts",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "encoding_jobs": {
+      "name": "encoding_jobs",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "video_id": { "name": "video_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "external_job_id": { "name": "external_job_id", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "job_type": { "name": "job_type", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "target_quality": { "name": "target_quality", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'pending'" },
+        "progress": { "name": "progress", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false, "default": 0 },
+        "progress_message": { "name": "progress_message", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "queued_at": { "name": "queued_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "started_at": { "name": "started_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "completed_at": { "name": "completed_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "error_code": { "name": "error_code", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "error_message": { "name": "error_message", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "error_details": { "name": "error_details", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "attempt_number": { "name": "attempt_number", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 1 },
+        "max_attempts": { "name": "max_attempts", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 3 },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {
+        "encoding_jobs_video_id_idx": { "name": "encoding_jobs_video_id_idx", "columns": ["video_id"], "isUnique": false },
+        "encoding_jobs_status_idx": { "name": "encoding_jobs_status_idx", "columns": ["status"], "isUnique": false }
+      },
+      "foreignKeys": {
+        "encoding_jobs_video_id_videos_id_fk": {
+          "name": "encoding_jobs_video_id_videos_id_fk",
+          "tableFrom": "encoding_jobs",
+          "tableTo": "videos",
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "video_variants": {
+      "name": "video_variants",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "video_id": { "name": "video_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "quality": { "name": "quality", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "width": { "name": "width", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "height": { "name": "height", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "bitrate": { "name": "bitrate", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "r2_path": { "name": "r2_path", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "file_size": { "name": "file_size", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'pending'" },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "completed_at": { "name": "completed_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false }
+      },
+      "indexes": {
+        "video_variants_video_id_idx": { "name": "video_variants_video_id_idx", "columns": ["video_id"], "isUnique": false }
+      },
+      "foreignKeys": {
+        "video_variants_video_id_videos_id_fk": {
+          "name": "video_variants_video_id_videos_id_fk",
+          "tableFrom": "video_variants",
+          "tableTo": "videos",
+          "columnsFrom": ["video_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "videos": {
+      "name": "videos",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "lesson_id": { "name": "lesson_id", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "title": { "name": "title", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "description": { "name": "description", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "r2_raw_path": { "name": "r2_raw_path", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "r2_thumbnail_path": { "name": "r2_thumbnail_path", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "source_width": { "name": "source_width", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "source_height": { "name": "source_height", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "file_size": { "name": "file_size", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "mime_type": { "name": "mime_type", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "source_metadata": { "name": "source_metadata", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "duration": { "name": "duration", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'pending'" },
+        "last_error": { "name": "last_error", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "visibility": { "name": "visibility", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'private'" },
+        "available_days": { "name": "available_days", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 3 },
+        "available_until": { "name": "available_until", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "videos_user_id_users_id_fk": {
+          "name": "videos_user_id_users_id_fk",
+          "tableFrom": "videos",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "videos_lesson_id_lessons_id_fk": {
+          "name": "videos_lesson_id_lessons_id_fk",
+          "tableFrom": "videos",
+          "tableTo": "lessons",
+          "columnsFrom": ["lesson_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "enrollments": {
+      "name": "enrollments",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "module_id": { "name": "module_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'active'" },
+        "enrolled_at": { "name": "enrolled_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "expires_at": { "name": "expires_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "completed_at": { "name": "completed_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "enrollments_user_id_users_id_fk": {
+          "name": "enrollments_user_id_users_id_fk",
+          "tableFrom": "enrollments",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "enrollments_module_id_modules_id_fk": {
+          "name": "enrollments_module_id_modules_id_fk",
+          "tableFrom": "enrollments",
+          "tableTo": "modules",
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "lesson_progress": {
+      "name": "lesson_progress",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "lesson_id": { "name": "lesson_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'not_started'" },
+        "progress_percent": { "name": "progress_percent", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "watched_seconds": { "name": "watched_seconds", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "started_at": { "name": "started_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "completed_at": { "name": "completed_at", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "last_accessed_at": { "name": "last_accessed_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "lesson_progress_user_id_users_id_fk": {
+          "name": "lesson_progress_user_id_users_id_fk",
+          "tableFrom": "lesson_progress",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "lesson_progress_lesson_id_lessons_id_fk": {
+          "name": "lesson_progress_lesson_id_lessons_id_fk",
+          "tableFrom": "lesson_progress",
+          "tableTo": "lessons",
+          "columnsFrom": ["lesson_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "lessons": {
+      "name": "lessons",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "unit_id": { "name": "unit_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "title": { "name": "title", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "description": { "name": "description", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "content_type": { "name": "content_type", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'video'" },
+        "sort_order": { "name": "sort_order", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "is_free": { "name": "is_free", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": false },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "lessons_unit_id_units_id_fk": {
+          "name": "lessons_unit_id_units_id_fk",
+          "tableFrom": "lessons",
+          "tableTo": "units",
+          "columnsFrom": ["unit_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "modules": {
+      "name": "modules",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "title": { "name": "title", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "description": { "name": "description", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "cover_image": { "name": "cover_image", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "enrollment_key": { "name": "enrollment_key", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "status": { "name": "status", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'draft'" },
+        "sort_order": { "name": "sort_order", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {
+        "modules_enrollment_key_unique": { "name": "modules_enrollment_key_unique", "columns": ["enrollment_key"], "isUnique": true }
+      },
+      "foreignKeys": {
+        "modules_user_id_users_id_fk": {
+          "name": "modules_user_id_users_id_fk",
+          "tableFrom": "modules",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "session_token": { "name": "session_token", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "user_id": { "name": "user_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "expires": { "name": "expires", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sessions_user_id_users_id_fk": {
+          "name": "sessions_user_id_users_id_fk",
+          "tableFrom": "sessions",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "units": {
+      "name": "units",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "module_id": { "name": "module_id", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "title": { "name": "title", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "description": { "name": "description", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "sort_order": { "name": "sort_order", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "units_module_id_modules_id_fk": {
+          "name": "units_module_id_modules_id_fk",
+          "tableFrom": "units",
+          "tableTo": "modules",
+          "columnsFrom": ["module_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "email": { "name": "email", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "name": { "name": "name", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "email_verified": { "name": "email_verified", "type": "integer", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "image": { "name": "image", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "password": { "name": "password", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "role": { "name": "role", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "'student'" },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" },
+        "updated_at": { "name": "updated_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "(datetime('now'))" }
+      },
+      "indexes": {
+        "users_email_unique": { "name": "users_email_unique", "columns": ["email"], "isUnique": true }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "verification_tokens": {
+      "name": "verification_tokens",
+      "columns": {
+        "identifier": { "name": "identifier", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "token": { "name": "token", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "expires": { "name": "expires", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

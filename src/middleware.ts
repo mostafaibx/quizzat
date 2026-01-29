@@ -1,7 +1,9 @@
 import { withAuth } from "next-auth/middleware";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import createIntlMiddleware from 'next-intl/middleware';
+import { getToken } from "next-auth/jwt";
 import { locales, defaultLocale } from '@/i18n/config';
+import type { JWT } from "next-auth/jwt";
 
 const intlMiddleware = createIntlMiddleware({
   locales,
@@ -10,36 +12,120 @@ const intlMiddleware = createIntlMiddleware({
   localeDetection: true
 });
 
-// Protected routes that require authentication (web routes only)
-const protectedRoutes = [
-  '/dashboard',
+// Auth pages (redirect away if already logged in)
+const authPages = ['/auth/signin', '/auth/signup'];
+
+// Routes that require authentication only (any authenticated user)
+const authOnlyRoutes = [
   '/files',
   '/quiz'
 ];
 
+// Routes with role-based access control
+const roleProtectedRoutes: Record<string, string[]> = {
+  '/teacher': ['teacher', 'admin'],
+  '/videos/upload': ['teacher', 'admin'],
+  '/admin': ['admin'],
+};
+
+// Routes accessible to any authenticated user (but still require auth)
+const authenticatedRoutes = [
+  '/learn',
+  '/videos',
+];
+
+// Helper to remove locale prefix from pathname
+function getPathWithoutLocale(pathname: string): string {
+  const localePattern = new RegExp(`^/(${locales.join('|')})`);
+  return pathname.replace(localePattern, '') || '/';
+}
+
+// Helper to check if path matches a route pattern
+function matchesRoute(path: string, route: string): boolean {
+  return path === route || path.startsWith(`${route}/`);
+}
+
+// Helper to get required roles for a path
+function getRequiredRoles(pathWithoutLocale: string): string[] | null {
+  for (const [route, roles] of Object.entries(roleProtectedRoutes)) {
+    if (matchesRoute(pathWithoutLocale, route)) {
+      return roles;
+    }
+  }
+  return null;
+}
+
+// Helper to check if path requires authentication
+function requiresAuth(pathWithoutLocale: string): boolean {
+  // Check auth-only routes
+  if (authOnlyRoutes.some(route => matchesRoute(pathWithoutLocale, route))) {
+    return true;
+  }
+  // Check role-protected routes
+  if (getRequiredRoles(pathWithoutLocale)) {
+    return true;
+  }
+  // Check authenticated routes
+  if (authenticatedRoutes.some(route => matchesRoute(pathWithoutLocale, route))) {
+    return true;
+  }
+  return false;
+}
+
+// Helper to get redirect path based on user role
+function getRoleBasedRedirect(role: string | undefined): string {
+  switch (role) {
+    case 'admin':
+    case 'teacher':
+      return '/teacher';
+    case 'student':
+      return '/learn';
+    default:
+      return '/';
+  }
+}
+
+// Helper to get the current locale from pathname
+function getLocaleFromPath(pathname: string): string {
+  const match = pathname.match(new RegExp(`^/(${locales.join('|')})`));
+  return match ? match[1] : defaultLocale;
+}
+
 const authMiddleware = withAuth(
   function middleware(req) {
+    const pathname = req.nextUrl.pathname;
+    const pathWithoutLocale = getPathWithoutLocale(pathname);
+    const locale = getLocaleFromPath(pathname);
+    const token = req.nextauth.token as JWT & { role?: string };
+    const userRole = token?.role as string | undefined;
+
+    // Check role-based access
+    const requiredRoles = getRequiredRoles(pathWithoutLocale);
+    if (requiredRoles && userRole) {
+      if (!requiredRoles.includes(userRole)) {
+        // User doesn't have the required role - redirect to their appropriate dashboard
+        const redirectPath = getRoleBasedRedirect(userRole);
+        const url = new URL(`/${locale}${redirectPath}`, req.url);
+        url.searchParams.set('error', 'unauthorized');
+        return NextResponse.redirect(url);
+      }
+    }
+
+    // User is authenticated and has access - continue with intl middleware
     return intlMiddleware(req);
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
         const pathname = req.nextUrl.pathname;
+        const pathWithoutLocale = getPathWithoutLocale(pathname);
 
-        // Remove locale from pathname for route checking
-        const localePattern = `/(${locales.join('|')})`;
-        const pathWithoutLocale = pathname.replace(new RegExp(`^${localePattern}`), '');
-
-        // Check if it's a protected route
-        const isProtected = protectedRoutes.some(route =>
-          pathWithoutLocale.startsWith(route)
-        );
-
-        // If it's a protected route, require authentication
-        if (isProtected) {
+        // Check if this route requires authentication
+        if (requiresAuth(pathWithoutLocale)) {
           return !!token;
         }
 
+        // Public route - allow access
         return true;
       },
     },
@@ -50,23 +136,37 @@ const authMiddleware = withAuth(
   }
 );
 
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+  const pathWithoutLocale = getPathWithoutLocale(pathname);
+  const locale = getLocaleFromPath(pathname);
 
-  // Remove locale from pathname for route checking
-  const localePattern = `/(${locales.join('|')})`;
-  const pathWithoutLocale = pathname.replace(new RegExp(`^${localePattern}`), '');
+  // Handle /dashboard redirect - redirect to role-based destination
+  if (pathWithoutLocale === '/dashboard' || pathWithoutLocale.startsWith('/dashboard/')) {
+    const token = await getToken({ req }) as JWT & { role?: string } | null;
+    if (token) {
+      const redirectPath = getRoleBasedRedirect(token.role);
+      return NextResponse.redirect(new URL(`/${locale}${redirectPath}`, req.url));
+    }
+    // Not logged in, redirect to signin
+    return NextResponse.redirect(new URL(`/${locale}/auth/signin`, req.url));
+  }
 
-  // Check if it's a protected route
-  const isProtectedPath = protectedRoutes.some(route =>
-    pathWithoutLocale.startsWith(route)
-  );
+  // Redirect authenticated users away from auth pages
+  if (authPages.some(page => matchesRoute(pathWithoutLocale, page))) {
+    const token = await getToken({ req });
+    if (token) {
+      const redirectPath = getRoleBasedRedirect((token as JWT & { role?: string }).role);
+      return NextResponse.redirect(new URL(`/${locale}${redirectPath}`, req.url));
+    }
+    // Not logged in, continue to auth page
+    return intlMiddleware(req);
+  }
 
-  // Use auth middleware for protected routes
-  if (isProtectedPath) {
-    // Type assertion to handle the middleware function type
-    const middleware = authMiddleware as (req: NextRequest) => ReturnType<typeof intlMiddleware>;
-    return middleware(req);
+  // Check if this route requires authentication or role checking
+  if (requiresAuth(pathWithoutLocale)) {
+    // Use auth middleware for protected routes
+    return (authMiddleware as (req: NextRequest) => ReturnType<typeof intlMiddleware>)(req);
   }
 
   // For public routes, just apply intl middleware

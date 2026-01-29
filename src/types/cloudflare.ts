@@ -45,6 +45,19 @@ export type CloudflareBindings = {
   // Auth
   NEXTAUTH_SECRET?: string;
 
+  // Cloudflare
+  CLOUDFLARE_ACCOUNT_ID?: string;
+
+  // GCP Encoding Service
+  GCP_PROJECT_ID?: string;
+  GCP_PUBSUB_TOPIC?: string;
+  GCP_SERVICE_ACCOUNT_KEY?: string;
+  ENCODING_WEBHOOK_SECRET?: string;
+
+  // R2 Configuration
+  R2_BUCKET_NAME?: string;
+  R2_PUBLIC_URL?: string; // CDN URL for public access
+
   // Environment variables
   ALLOWED_ORIGINS?: string;
   NEXT_PUBLIC_APP_URL?: string;
@@ -67,6 +80,13 @@ export interface AppEnv {
   FILES: R2Bucket;
   AI?: WorkersAI;
   VECTORIZE?: VectorizeIndex;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  GCP_PROJECT_ID?: string;
+  GCP_PUBSUB_TOPIC?: string;
+  GCP_SERVICE_ACCOUNT_KEY?: string;
+  ENCODING_WEBHOOK_SECRET?: string;
+  R2_BUCKET_NAME?: string;
+  R2_PUBLIC_URL?: string;
   NEXT_PUBLIC_APP_URL?: string;
   NODE_ENV?: string;
 }
