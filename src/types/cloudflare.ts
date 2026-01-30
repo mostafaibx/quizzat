@@ -2,31 +2,6 @@
 
 import type { AuthenticatedUser } from './auth.types';
 
-// Vectorize types
-export interface VectorizeVector {
-  id: string;
-  values: number[];
-  metadata?: Record<string, string | number | boolean>;
-}
-
-export interface VectorizeQueryResult {
-  id: string;
-  score: number;
-  metadata?: Record<string, string | number | boolean>;
-}
-
-export interface VectorizeIndex {
-  insert(vectors: VectorizeVector[]): Promise<{ mutationId: string; ids: string[] }>;
-  upsert(vectors: VectorizeVector[]): Promise<{ mutationId: string; ids: string[] }>;
-  query(vector: number[], options?: {
-    topK?: number;
-    returnMetadata?: boolean;
-    filter?: Record<string, string | number | boolean>;
-  }): Promise<{ matches: VectorizeQueryResult[] }>;
-  getByIds(ids: string[]): Promise<VectorizeVector[]>;
-  deleteByIds(ids: string[]): Promise<{ mutationId: string }>;
-}
-
 // Workers AI types
 export interface WorkersAI {
   run(model: string, inputs: Record<string, unknown>): Promise<unknown>;
@@ -58,6 +33,9 @@ export type CloudflareBindings = {
   R2_BUCKET_NAME?: string;
   R2_PUBLIC_URL?: string; // CDN URL for public access
 
+  // Gemini API (for transcription and embeddings)
+  GEMINI_API_KEY?: string;
+
   // Environment variables
   ALLOWED_ORIGINS?: string;
   NEXT_PUBLIC_APP_URL?: string;
@@ -87,6 +65,7 @@ export interface AppEnv {
   ENCODING_WEBHOOK_SECRET?: string;
   R2_BUCKET_NAME?: string;
   R2_PUBLIC_URL?: string;
+  GEMINI_API_KEY?: string;
   NEXT_PUBLIC_APP_URL?: string;
   NODE_ENV?: string;
 }

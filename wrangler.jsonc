@@ -35,15 +35,25 @@
   "r2_buckets": [
     {
       "binding": "FILES",
-      "bucket_name": "quizat-eg-files"
-    }
+      "bucket_name": "quizat-files",
+      "preview_bucket_name": "quizat-files-preview"    }
   ],
 
   // KV Namespace for Next.js incremental cache
   "kv_namespaces": [
     {
       "binding": "NEXT_INC_CACHE_KV",
-      "id": "c8a30ac6dd394df29a769ffa5440d569"
+      "id": "c8a30ac6dd394df29a769ffa5440d569",
+      "preview_id": "c8a30ac6dd394df29a769ffa5440d569"
+    }
+  ],
+
+  // Vectorize index for RAG semantic search
+  // Create with: wrangler vectorize create quizy-embeddings --dimensions=768 --metric=cosine
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "quizy-embeddings"
     }
   ],
 
@@ -62,13 +72,19 @@
       "r2_buckets": [
         {
           "binding": "FILES",
-          "bucket_name": "quizat-eg-files"
+          "bucket_name": "quizat-files-preview"
         }
       ],
       "kv_namespaces": [
         {
           "binding": "NEXT_INC_CACHE_KV",
           "id": "c8a30ac6dd394df29a769ffa5440d569"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "quizy-embeddings-preview"
         }
       ]
     },
@@ -85,13 +101,19 @@
       "r2_buckets": [
         {
           "binding": "FILES",
-          "bucket_name": "quizat-eg-files"
+          "bucket_name": "quizat-files"
         }
       ],
       "kv_namespaces": [
         {
           "binding": "NEXT_INC_CACHE_KV",
           "id": "c8a30ac6dd394df29a769ffa5440d569"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "quizy-embeddings"
         }
       ]
     }

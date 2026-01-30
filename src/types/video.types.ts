@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { VideoQuality, EncodingStatusVariant } from './encoding.types';
+import { VIDEO_QUALITY, type VideoQuality, type EncodingStatusVariant } from './encoding.types';
 
 // ============================================================================
 // Constants
@@ -27,6 +27,7 @@ export interface VideoPlayback {
   variants: VideoPlaybackVariant[];
   thumbnail?: string;
   defaultQuality: VideoQuality;
+  iframe?: string;
 }
 
 // ============================================================================
@@ -37,6 +38,7 @@ export const createUploadSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   visibility: z.enum(VIDEO_VISIBILITY).default('private'),
+  moduleId: z.string().min(1), // Required: video must belong to a module
   filename: z.string().min(1), // Original filename for R2 path
   fileSize: z.number().min(1).max(200 * 1024 * 1024 * 1024), // Max 200GB
   mimeType: z.string().min(1),
@@ -59,6 +61,23 @@ export const confirmUploadSchema = z.object({
   sourceWidth: z.number().optional(),
   sourceHeight: z.number().optional(),
   duration: z.number().optional(),
+  /** Selected video qualities to encode */
+  qualities: z.array(z.enum(VIDEO_QUALITY)).min(1).optional(),
+  /** Enable AI features (audio extraction for transcription) */
+  useAI: z.boolean().optional(),
+});
+
+export const assignVideoSchema = z.object({
+  /** Lesson ID to assign video to, or null to unassign */
+  lessonId: z.string().nullable(),
+  /** Number of days the video is available to students */
+  availableDays: z.number().min(1).max(365).optional(),
+});
+
+export const listUnassignedVideosQuerySchema = z.object({
+  limit: z.coerce.number().min(1).max(100).default(50),
+  offset: z.coerce.number().min(0).default(0),
+  moduleId: z.string().optional(), // Filter by module
 });
 
 // ============================================================================
@@ -69,6 +88,8 @@ export type CreateUploadInput = z.infer<typeof createUploadSchema>;
 export type UpdateVideoInput = z.infer<typeof updateVideoSchema>;
 export type ListVideosQuery = z.infer<typeof listVideosQuerySchema>;
 export type ConfirmUploadInput = z.infer<typeof confirmUploadSchema>;
+export type AssignVideoInput = z.infer<typeof assignVideoSchema>;
+export type ListUnassignedVideosQuery = z.infer<typeof listUnassignedVideosQuerySchema>;
 
 // ============================================================================
 // Response Types (for RPC and API responses)

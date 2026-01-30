@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useRef, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { VideoDropzone } from './video-dropzone';
@@ -37,7 +37,6 @@ interface VideoUploaderLabels {
     visibilityPublicDesc?: string;
     upload?: string;
     uploading?: string;
-    assignToLesson?: string;
     availableDays?: string;
     availableDaysHint?: string;
     module?: string;
@@ -61,8 +60,13 @@ interface VideoUploaderLabels {
 
 interface VideoUploaderProps {
   className?: string;
+  /** Fallback redirect URL if no module/lesson selected. Use :id for video ID placeholder */
   redirectOnSuccess?: string;
+  /** Auto-redirect to module/lesson page after upload starts encoding */
+  autoRedirectToContent?: boolean;
   showLessonSelector?: boolean;
+  /** Whether module selection is required when showLessonSelector is true */
+  moduleRequired?: boolean;
   labels?: VideoUploaderLabels;
   onSuccess?: (videoId: string) => void;
   onError?: (error: string) => void;
@@ -71,12 +75,20 @@ interface VideoUploaderProps {
 export function VideoUploader({
   className,
   redirectOnSuccess,
+  autoRedirectToContent = true,
   showLessonSelector = false,
+  moduleRequired = true,
   labels = {},
   onSuccess,
   onError,
 }: VideoUploaderProps) {
   const router = useRouter();
+  const params = useParams();
+  const locale = params.locale as string || 'en';
+
+  // Store metadata for redirect after upload
+  const uploadMetadataRef = useRef<VideoMetadata | null>(null);
+  const hasRedirectedRef = useRef(false);
 
   const {
     cardTitle = 'Upload Video',
@@ -89,11 +101,9 @@ export function VideoUploader({
   const handleSuccess = useCallback(
     (videoId: string) => {
       onSuccess?.(videoId);
-      if (redirectOnSuccess) {
-        router.push(redirectOnSuccess.replace(':id', videoId));
-      }
+      // Don't redirect here anymore - we redirect when encoding starts
     },
-    [onSuccess, redirectOnSuccess, router]
+    [onSuccess]
   );
 
   const {
@@ -105,25 +115,51 @@ export function VideoUploader({
     cancel,
     reset,
     isUploading,
-    isProcessing,
+    isEncoding,
     isComplete,
   } = useVideoUpload({
     onSuccess: handleSuccess,
     onError,
   });
 
+  // Redirect when encoding starts (upload completed)
+  useEffect(() => {
+    if (uploadState.status === 'encoding' && !hasRedirectedRef.current && uploadMetadataRef.current) {
+      hasRedirectedRef.current = true;
+      const metadata = uploadMetadataRef.current;
+
+      if (autoRedirectToContent && metadata.moduleId) {
+        // Build redirect URL based on selection
+        if (metadata.lessonId && metadata.unitId) {
+          // Redirect to lesson page
+          router.push(`/${locale}/teacher/modules/${metadata.moduleId}/units/${metadata.unitId}/lessons/${metadata.lessonId}`);
+        } else {
+          // Redirect to module page
+          router.push(`/${locale}/teacher/modules/${metadata.moduleId}`);
+        }
+      } else if (redirectOnSuccess && uploadState.videoId) {
+        // Fallback to custom redirect
+        router.push(redirectOnSuccess.replace(':id', uploadState.videoId));
+      }
+    }
+  }, [uploadState.status, uploadState.videoId, autoRedirectToContent, redirectOnSuccess, router, locale]);
+
   const handleFormSubmit = useCallback(
     (metadata: VideoMetadata) => {
+      uploadMetadataRef.current = metadata;
+      hasRedirectedRef.current = false;
       upload(metadata);
     },
     [upload]
   );
 
   const handleRetry = useCallback(() => {
+    uploadMetadataRef.current = null;
+    hasRedirectedRef.current = false;
     reset();
   }, [reset]);
 
-  const showForm = selectedFile && !isUploading && !isProcessing && !isComplete;
+  const showForm = selectedFile && !isUploading && !isEncoding && !isComplete;
   const showProgress = uploadState.status !== 'idle';
 
   return (
@@ -138,7 +174,7 @@ export function VideoUploader({
           onFileSelect={selectFile}
           selectedFile={selectedFile}
           onClear={clearFile}
-          disabled={isUploading || isProcessing}
+          disabled={isUploading || isEncoding}
           labels={dropzoneLabels}
         />
 
@@ -158,6 +194,8 @@ export function VideoUploader({
             onSubmit={handleFormSubmit}
             disabled={isUploading}
             showLessonSelector={showLessonSelector}
+            moduleRequired={moduleRequired}
+            fileName={selectedFile?.file.name}
             labels={formLabels}
           />
         )}

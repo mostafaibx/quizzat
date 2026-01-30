@@ -5,7 +5,7 @@
  * Handles video upload to R2 and triggers encoding via GCP Pub/Sub.
  */
 
-import { eq, desc, and, or, type SQL } from 'drizzle-orm';
+import { eq, desc, and, or, sql, type SQL } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { videos, videoVariants, encodingJobs } from '@/db/schema';
 import type { Video, VideoVariant } from '@/db/schema';
@@ -155,6 +155,93 @@ export async function listVideos(
   };
 }
 
+/**
+ * Lists videos that are not assigned to any lesson.
+ * Can be filtered by moduleId to show unassigned videos for a specific module.
+ * Teachers see their own unassigned videos, admins see all.
+ */
+export async function listUnassignedVideos(
+  deps: ServiceDeps,
+  user: AuthenticatedUser,
+  query: { limit?: number; offset?: number; moduleId?: string } = {}
+): Promise<{ videos: Video[]; hasMore: boolean }> {
+  const limit = query.limit ?? 50;
+  const offset = query.offset ?? 0;
+  const conditions: SQL[] = [];
+
+  // Videos where lessonId is null (unassigned to lesson)
+  conditions.push(sql`${videos.lessonId} IS NULL`);
+
+  // Filter by moduleId if provided
+  if (query.moduleId) {
+    conditions.push(eq(videos.moduleId, query.moduleId));
+  }
+
+  // Non-admins can only see their own videos
+  if (user.role !== AUTH_ROLES.ADMIN) {
+    conditions.push(eq(videos.userId, user.id));
+  }
+
+  const videoList = await deps.db
+    .select()
+    .from(videos)
+    .where(and(...conditions))
+    .orderBy(desc(videos.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return {
+    videos: videoList,
+    hasMore: videoList.length === limit,
+  };
+}
+
+/**
+ * Lists videos assigned to a specific lesson.
+ */
+export async function getVideosForLesson(
+  deps: ServiceDeps,
+  lessonId: string
+): Promise<Video[]> {
+  return deps.db
+    .select()
+    .from(videos)
+    .where(eq(videos.lessonId, lessonId))
+    .orderBy(desc(videos.createdAt));
+}
+
+/**
+ * Assigns a video to a lesson, or unassigns if lessonId is null.
+ */
+export async function assignVideoToLesson(
+  deps: ServiceDeps,
+  videoId: string,
+  lessonId: string | null,
+  availableDays?: number
+): Promise<Video> {
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+  const updateData: Record<string, unknown> = {
+    lessonId,
+    updatedAt: now,
+  };
+
+  // Update availableDays if provided
+  if (availableDays !== undefined) {
+    updateData.availableDays = availableDays;
+  }
+
+  await deps.db.update(videos).set(updateData).where(eq(videos.id, videoId));
+
+  const [updatedVideo] = await deps.db
+    .select()
+    .from(videos)
+    .where(eq(videos.id, videoId))
+    .limit(1);
+
+  return updatedVideo;
+}
+
 // ============================================================================
 // Write Operations
 // ============================================================================
@@ -162,6 +249,7 @@ export async function listVideos(
 /**
  * Creates a video upload record and returns a presigned R2 URL.
  * The client will use this URL to upload the video directly to R2.
+ * Video must be assigned to a module (required).
  */
 export async function createVideoUpload(
   deps: ServiceDepsWithR2,
@@ -175,6 +263,7 @@ export async function createVideoUpload(
   await deps.db.insert(videos).values({
     id: videoId,
     userId,
+    moduleId: input.moduleId, // Required: video belongs to a module
     title: input.title,
     description: input.description,
     r2RawPath: r2Path,
@@ -255,7 +344,11 @@ export async function confirmUpload(
     encodingDeps,
     updatedVideo,
     input.sourceWidth,
-    input.sourceHeight
+    input.sourceHeight,
+    {
+      qualities: input.qualities,
+      useAI: input.useAI ?? true, // Default to true if not specified
+    }
   );
 
   return {

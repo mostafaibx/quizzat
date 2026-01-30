@@ -180,7 +180,11 @@
     "copied": "تم النسخ!",
     "regenerate": "إعادة إنشاء",
     "confirmRegenerate": "تأكيد",
-    "regenerateWarning": "سيؤدي هذا إلى إلغاء صلاحية المفتاح الحالي. التسجيلات الحالية لن تتأثر."
+    "regenerateWarning": "سيؤدي هذا إلى إلغاء صلاحية المفتاح الحالي. التسجيلات الحالية لن تتأثر.",
+    "unassignedVideos": "فيديوهات غير معينة",
+    "noUnassignedVideos": "جميع الفيديوهات معينة للدروس",
+    "selectLesson": "اختر درساً",
+    "noLessonsAvailable": "لا توجد دروس متاحة"
   },
   "errors": {
     "unauthorized": "ليس لديك صلاحية للوصول إلى هذه الصفحة",

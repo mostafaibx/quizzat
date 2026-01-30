@@ -15,7 +15,9 @@ import { useModules, useModule } from '@/hooks';
 interface LessonSelectorProps {
   value?: string;
   onChange: (lessonId: string | undefined, moduleId?: string, unitId?: string) => void;
+  onModuleChange?: (moduleId: string | undefined) => void;
   disabled?: boolean;
+  moduleRequired?: boolean;
   labels?: {
     module?: string;
     modulePlaceholder?: string;
@@ -24,13 +26,17 @@ interface LessonSelectorProps {
     lesson?: string;
     lessonPlaceholder?: string;
     optional?: string;
+    required?: string;
+    selectLessonHint?: string;
   };
 }
 
 export function LessonSelector({
   value,
   onChange,
+  onModuleChange,
   disabled = false,
+  moduleRequired = true,
   labels = {},
 }: LessonSelectorProps) {
   const t = useTranslations('videos');
@@ -42,6 +48,8 @@ export function LessonSelector({
     lesson: lessonLabel = 'Lesson',
     lessonPlaceholder = 'Select a lesson',
     optional = '(optional)',
+    required = '(required)',
+    selectLessonHint = 'Select a unit and lesson to properly organize your video content',
   } = labels;
 
   const [selectedModuleId, setSelectedModuleId] = useState<string | undefined>();
@@ -65,11 +73,13 @@ export function LessonSelector({
       setSelectedUnitId(undefined);
       setSelectedLessonId(undefined);
       onChange(undefined);
+      onModuleChange?.(undefined);
     } else {
       setSelectedModuleId(moduleId);
       setSelectedUnitId(undefined);
       setSelectedLessonId(undefined);
       onChange(undefined, moduleId);
+      onModuleChange?.(moduleId);
     }
   };
 
@@ -97,6 +107,9 @@ export function LessonSelector({
     }
   };
 
+  // Show suggestion when module is selected but lesson is not
+  const showSuggestion = selectedModuleId && !selectedLessonId;
+
   return (
     <div className="space-y-4">
       {/* Module selector */}
@@ -104,18 +117,20 @@ export function LessonSelector({
         <Label className="flex items-center gap-2">
           <FolderIcon className="h-4 w-4" />
           {moduleLabel}
-          <span className="text-muted-foreground text-xs">{optional}</span>
+          <span className={moduleRequired ? "text-destructive text-xs font-medium" : "text-muted-foreground text-xs"}>
+            {moduleRequired ? required : optional}
+          </span>
         </Label>
         <Select
           value={selectedModuleId || 'none'}
           onValueChange={handleModuleChange}
           disabled={disabled || isLoadingModules}
         >
-          <SelectTrigger>
+          <SelectTrigger className={!selectedModuleId && moduleRequired ? "border-amber-300 focus:ring-amber-300" : ""}>
             <SelectValue placeholder={modulePlaceholder} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">{modulePlaceholder}</SelectItem>
+            {!moduleRequired && <SelectItem value="none">{modulePlaceholder}</SelectItem>}
             {modules.map((module) => (
               <SelectItem key={module.id} value={module.id}>
                 {module.title}
@@ -184,6 +199,16 @@ export function LessonSelector({
           )}
         </div>
       )}
+
+      {/* Suggestion message when module selected but lesson not */}
+      {showSuggestion && (
+        <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/30 dark:border-amber-800">
+          <InfoIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            {selectLessonHint}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -209,6 +234,14 @@ function PlayIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function InfoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }

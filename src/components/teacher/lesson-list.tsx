@@ -2,18 +2,21 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Lesson } from '@/lib/rpc';
 
 interface LessonListProps {
   lessons: Lesson[];
+  moduleId: string;
+  unitId: string;
   onAdd: () => void;
   onEdit: (lesson: Lesson) => void;
   onDelete: (lessonId: string) => void;
 }
 
-export function LessonList({ lessons, onAdd, onEdit, onDelete }: LessonListProps) {
+export function LessonList({ lessons, moduleId, unitId, onAdd, onEdit, onDelete }: LessonListProps) {
   const t = useTranslations('teacher');
 
   const contentTypeIcons: Record<string, React.ReactNode> = {
@@ -45,6 +48,8 @@ export function LessonList({ lessons, onAdd, onEdit, onDelete }: LessonListProps
               lesson={lesson}
               index={index + 1}
               icon={contentTypeIcons[lesson.contentType]}
+              moduleId={moduleId}
+              unitId={unitId}
               onEdit={() => onEdit(lesson)}
               onDelete={() => onDelete(lesson.id)}
             />
@@ -59,16 +64,19 @@ interface LessonItemProps {
   lesson: Lesson;
   index: number;
   icon: React.ReactNode;
+  moduleId: string;
+  unitId: string;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function LessonItem({ lesson, index, icon, onEdit, onDelete }: LessonItemProps) {
+function LessonItem({ lesson, index, icon, moduleId, unitId, onEdit, onDelete }: LessonItemProps) {
   const t = useTranslations('teacher');
-  const tCommon = useTranslations('common');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (showDeleteConfirm) {
       onDelete();
       setShowDeleteConfirm(false);
@@ -77,8 +85,17 @@ function LessonItem({ lesson, index, icon, onEdit, onDelete }: LessonItemProps) 
     }
   };
 
+  const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEdit();
+  };
+
   return (
-    <div className="group flex items-center gap-3 rounded-md border bg-background p-3 hover:bg-accent/50 transition-colors">
+    <Link
+      href={`/teacher/modules/${moduleId}/units/${unitId}/lessons/${lesson.id}`}
+      className="group flex items-center gap-3 rounded-md border bg-background p-3 hover:bg-accent/50 transition-colors"
+    >
       <span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-medium">
         {index}
       </span>
@@ -94,7 +111,7 @@ function LessonItem({ lesson, index, icon, onEdit, onDelete }: LessonItemProps) 
           <Badge variant="secondary" className="text-xs">{t('free')}</Badge>
         )}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-          <Button variant="ghost" size="icon-xs" onClick={onEdit}>
+          <Button variant="ghost" size="icon-xs" onClick={handleEdit}>
             <EditIcon className="h-3 w-3" />
           </Button>
           <Button
@@ -107,7 +124,7 @@ function LessonItem({ lesson, index, icon, onEdit, onDelete }: LessonItemProps) 
           </Button>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

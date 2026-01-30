@@ -23,7 +23,7 @@ app.use('*', async (c, next) => {
 app.use('*', logger());
 
 // CORS configuration
-app.use('/api/*', cors({
+app.use('*', cors({
   origin: (origin) => {
     const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
     return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];

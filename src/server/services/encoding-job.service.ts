@@ -21,6 +21,7 @@ import {
   VIDEO_QUALITY,
 } from '@/types/encoding.types';
 import { publishEncodingJob, type PubSubConfig } from '@/lib/pubsub';
+import { processVideoTranscription } from './transcription.service';
 
 // ============================================================================
 // Types
@@ -28,6 +29,11 @@ import { publishEncodingJob, type PubSubConfig } from '@/lib/pubsub';
 
 export interface EncodingServiceDeps {
   db: DrizzleD1Database;
+  // Optional: for auto-triggering transcription on audio.extracted
+  r2Bucket?: R2Bucket;
+  geminiApiKey?: string;
+  // Optional: for RAG indexing after transcription
+  vectorize?: VectorizeIndex;
 }
 
 export interface EncodingServiceDepsWithPubSub extends EncodingServiceDeps {
@@ -85,6 +91,13 @@ export function determineQualities(
   return configs;
 }
 
+export interface EncodingOptions {
+  /** User-selected qualities to encode */
+  qualities?: VideoQuality[];
+  /** Enable AI features (audio extraction for STT) */
+  useAI?: boolean;
+}
+
 /**
  * Creates encoding jobs and video variants for a video.
  * Publishes the encoding job message to GCP Pub/Sub.
@@ -93,16 +106,27 @@ export async function createEncodingJobs(
   deps: EncodingServiceDepsWithPubSub,
   video: Video,
   sourceWidth?: number,
-  sourceHeight?: number
+  sourceHeight?: number,
+  options?: EncodingOptions
 ): Promise<CreateEncodingJobsResult> {
   const jobId = generateJobId();
   const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const useAI = options?.useAI ?? true; // Default to true
 
-  // Determine which qualities to encode
-  const qualities = determineQualities(
+  // Determine which qualities to encode based on source dimensions
+  let qualities = determineQualities(
     sourceWidth ?? 1920,
     sourceHeight ?? 1080
   );
+
+  // Filter by user-selected qualities if provided
+  if (options?.qualities && options.qualities.length > 0) {
+    qualities = qualities.filter((q) => options.qualities!.includes(q.quality));
+    // Ensure at least one quality is selected
+    if (qualities.length === 0) {
+      qualities = [determineQualities(sourceWidth ?? 1920, sourceHeight ?? 1080).pop()!];
+    }
+  }
 
   // Create video variants
   const variantIds: string[] = [];
@@ -155,9 +179,11 @@ export async function createEncodingJobs(
     updatedAt: now,
   });
 
-  // Parse the r2RawPath to get filename
+  // Parse the r2RawPath to get folder path and filename
   const rawPath = video.r2RawPath || '';
   const filename = rawPath.split('/').pop() || 'video.mp4';
+  // source.path should be the folder path (without filename), per INTEGRATION.md
+  const sourceFolderPath = rawPath.substring(0, rawPath.lastIndexOf('/'));
 
   // Build the encoding job message
   const message: EncodingJobMessage = {
@@ -165,7 +191,7 @@ export async function createEncodingJobs(
     videoId: video.id,
     source: {
       bucket: deps.r2BucketName,
-      path: rawPath,
+      path: sourceFolderPath,
       filename,
     },
     output: {
@@ -177,6 +203,9 @@ export async function createEncodingJobs(
       enabled: true,
       timestampPercent: 25, // Capture thumbnail at 25% of video
       path: R2_PATHS.thumbnail(video.id),
+    },
+    audioForStt: {
+      enabled: useAI, // Enable audio extraction for speech-to-text when AI is enabled
     },
     callback: {
       webhookUrl: deps.webhookUrl,
@@ -424,6 +453,38 @@ export async function processWebhook(
           updatedAt: now,
         })
         .where(eq(videos.id, videoId));
+      break;
+    }
+
+    case 'audio.extracted': {
+      // STT audio has been extracted - store the path
+      await deps.db
+        .update(videos)
+        .set({
+          sttAudioPath: payload.data.outputPath,
+          updatedAt: now,
+        })
+        .where(eq(videos.id, videoId));
+
+      // Auto-trigger transcription if Gemini API key is configured
+      if (deps.r2Bucket && deps.geminiApiKey) {
+        console.log(`[Encoding] Auto-triggering transcription for video ${videoId}`);
+        // Run transcription asynchronously (non-blocking)
+        // Pass Vectorize for RAG indexing if available
+        processVideoTranscription(
+          {
+            db: deps.db,
+            r2Bucket: deps.r2Bucket,
+            geminiApiKey: deps.geminiApiKey,
+            vectorize: deps.vectorize,
+          },
+          videoId
+        ).catch((err) => {
+          console.error(`[Encoding] Auto-transcription failed for video ${videoId}:`, err);
+        });
+      } else {
+        console.log(`[Encoding] Skipping auto-transcription for video ${videoId} (Gemini API key not configured)`);
+      }
       break;
     }
   }

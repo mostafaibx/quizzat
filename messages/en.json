@@ -180,7 +180,11 @@
     "copied": "Copied!",
     "regenerate": "Regenerate",
     "confirmRegenerate": "Confirm",
-    "regenerateWarning": "This will invalidate the current key. Existing enrollments will not be affected."
+    "regenerateWarning": "This will invalidate the current key. Existing enrollments will not be affected.",
+    "unassignedVideos": "Unassigned Videos",
+    "noUnassignedVideos": "All videos are assigned to lessons",
+    "selectLesson": "Select lesson",
+    "noLessonsAvailable": "No lessons available"
   },
   "errors": {
     "unauthorized": "You don't have permission to access this page",

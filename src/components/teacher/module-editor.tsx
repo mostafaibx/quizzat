@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EnrollmentKeyCard } from './enrollment-key-card';
 import { UnitList } from './unit-list';
+import { UnassignedVideosCard } from './unassigned-videos-card';
 import { ModuleFormDialog } from './module-form-dialog';
 import { UnitFormDialog } from './unit-form-dialog';
 import { LessonFormDialog } from './lesson-form-dialog';
@@ -200,6 +201,9 @@ export function ModuleEditor({ moduleId }: ModuleEditorProps) {
         onRegenerate={handleRegenerateKey}
         isLoading={isModuleMutating}
       />
+
+      {/* Unassigned Videos */}
+      <UnassignedVideosCard module={module} onVideoAssigned={refetch} />
 
       {/* Units and Lessons */}
       <UnitList

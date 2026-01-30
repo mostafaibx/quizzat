@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
@@ -134,13 +134,20 @@ export const lessonProgress = sqliteTable("lesson_progress", {
 export const videos = sqliteTable("videos", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  lessonId: text("lesson_id").references(() => lessons.id, { onDelete: "set null" }), // Link to lesson
+  moduleId: text("module_id").notNull().references(() => modules.id, { onDelete: "cascade" }), // Required: video belongs to a module
+  lessonId: text("lesson_id").references(() => lessons.id, { onDelete: "set null" }), // Optional: video can be assigned to a lesson
   title: text("title").notNull(),
   description: text("description"),
 
   // R2 Storage paths
   r2RawPath: text("r2_raw_path"),           // "videos/raw/{videoId}/{filename}"
   r2ThumbnailPath: text("r2_thumbnail_path"), // "videos/thumbnails/{videoId}.jpg"
+  sttAudioPath: text("stt_audio_path"),       // "videos/audio/{videoId}/audio_for_stt.wav"
+  transcriptPath: text("transcript_path"),    // "videos/transcripts/{videoId}/transcript.json"
+
+  // Transcription status
+  transcriptionStatus: text("transcription_status").default("pending"), // pending | processing | completed | failed | skipped
+  transcriptionError: text("transcription_error"),  // Last transcription error message
 
   // Source video metadata
   sourceWidth: integer("source_width"),
@@ -204,6 +211,27 @@ export const encodingJobs = sqliteTable("encoding_jobs", {
 });
 
 // ============================================================================
+// TRANSCRIPT CHUNKS TABLE (RAG - Semantic Search)
+// ============================================================================
+
+/**
+ * Transcript Chunks - Chunked transcript segments for semantic search
+ * Each chunk contains ~400 tokens of transcript content with timestamps
+ */
+export const transcriptChunks = sqliteTable("transcript_chunks", {
+  id: text("id").primaryKey(),                                        // chk_{uuid}
+  videoId: text("video_id").notNull(),                                // Reference to video
+  moduleId: text("module_id").notNull(),                              // For module-wide search filtering
+  chunkIndex: integer("chunk_index").notNull(),                       // Sequential chunk number
+  content: text("content").notNull(),                                 // Combined segment text
+  tokenCount: integer("token_count").notNull(),                       // Estimated token count
+  startTime: real("start_time").notNull(),                            // Start timestamp in seconds
+  endTime: real("end_time").notNull(),                                // End timestamp in seconds
+  metadata: text("metadata"),                                         // JSON: segmentIds, avgConfidence, language
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+// ============================================================================
 // TYPE EXPORTS
 // ============================================================================
 
@@ -239,6 +267,10 @@ export type NewVideoVariant = InferInsertModel<typeof videoVariants>;
 export type EncodingJob = InferSelectModel<typeof encodingJobs>;
 export type NewEncodingJob = InferInsertModel<typeof encodingJobs>;
 
+// RAG types
+export type TranscriptChunkRecord = InferSelectModel<typeof transcriptChunks>;
+export type NewTranscriptChunkRecord = InferInsertModel<typeof transcriptChunks>;
+
 // Re-export types from shared types files
 export type { VideoStatus, VideoVisibility } from "@/types/video.types";
 export type { ModuleStatus, LessonContentType } from "@/types/module.types";
@@ -249,3 +281,4 @@ export type {
   EncodingJobStatus,
   EncodingJobType,
 } from "@/types/encoding.types";
+export type { TranscriptionStatus } from "@/types/transcription.types";

@@ -71,6 +71,7 @@ export function UnitList({
               key={unit.id}
               unit={unit}
               index={index + 1}
+              moduleId={moduleId}
               onEdit={() => onEditUnit(unit)}
               onDelete={() => onDeleteUnit(unit.id)}
               onAddLesson={() => onAddLesson(unit.id)}
@@ -87,6 +88,7 @@ export function UnitList({
 interface UnitCardProps {
   unit: UnitWithLessons;
   index: number;
+  moduleId: string;
   onEdit: () => void;
   onDelete: () => void;
   onAddLesson: () => void;
@@ -97,6 +99,7 @@ interface UnitCardProps {
 function UnitCard({
   unit,
   index,
+  moduleId,
   onEdit,
   onDelete,
   onAddLesson,
@@ -152,6 +155,8 @@ function UnitCard({
         <CardContent>
           <LessonList
             lessons={unit.lessons || []}
+            moduleId={moduleId}
+            unitId={unit.id}
             onAdd={onAddLesson}
             onEdit={onEditLesson}
             onDelete={onDeleteLesson}

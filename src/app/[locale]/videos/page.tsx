@@ -79,9 +79,9 @@ function VideoCard({ video, locale }: { video: VideoItem; locale: string }) {
       <Card className="overflow-hidden transition-shadow hover:shadow-md cursor-pointer group">
         {/* Thumbnail */}
         <div className="aspect-video bg-muted relative">
-          {video.thumbnail ? (
+          {video.playback?.thumbnail ? (
             <img
-              src={video.thumbnail}
+              src={video.playback.thumbnail}
               alt={video.title}
               className="h-full w-full object-cover"
             />

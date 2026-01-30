@@ -16,6 +16,7 @@ interface ModuleCardProps {
 
 export function ModuleCard({ module, onEdit, onDelete }: ModuleCardProps) {
   const t = useTranslations('teacher');
+  const tCommon = useTranslations('common');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const statusColors = {
@@ -73,7 +74,7 @@ export function ModuleCard({ module, onEdit, onDelete }: ModuleCardProps) {
         </Button>
         {onEdit && (
           <Button variant="ghost" size="sm" onClick={() => onEdit(module)}>
-            {t('common:edit')}
+            {tCommon('edit')}
           </Button>
         )}
         {onDelete && (
@@ -83,7 +84,7 @@ export function ModuleCard({ module, onEdit, onDelete }: ModuleCardProps) {
             onClick={handleDelete}
             onBlur={() => setShowDeleteConfirm(false)}
           >
-            {showDeleteConfirm ? t('confirmDelete') : t('common:delete')}
+            {showDeleteConfirm ? t('confirmDelete') : tCommon('delete')}
           </Button>
         )}
       </CardFooter>

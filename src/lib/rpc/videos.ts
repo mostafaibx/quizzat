@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch, apiDelete, apiPut } from './client';
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type { Video as DBVideo } from '@/db/schema';
 import type {
   VideoVisibility,
@@ -11,6 +11,7 @@ import type {
   ConfirmUploadResult,
   VideoListResult,
   DeleteVideoResult,
+  AssignVideoInput,
 } from '@/types/video.types';
 import type { VideoQuality } from '@/types/encoding.types';
 
@@ -204,6 +205,46 @@ async function deleteVideo(videoId: string): Promise<DeleteVideoResult> {
 }
 
 /**
+ * List videos not assigned to any lesson
+ * Can be filtered by moduleId to show unassigned videos for a specific module
+ * Teachers see their own, admins see all
+ */
+async function listUnassignedVideos(
+  options: { limit?: number; offset?: number; moduleId?: string } = {}
+): Promise<VideoListResponse> {
+  const query: Record<string, string> = {};
+
+  if (options.limit) query.limit = options.limit.toString();
+  if (options.offset) query.offset = options.offset.toString();
+  if (options.moduleId) query.moduleId = options.moduleId;
+
+  return apiGet<VideoListResponse>('/api/videos/unassigned', query);
+}
+
+/**
+ * Assign a video to a lesson or unassign it
+ * Only owner or admin can assign
+ */
+async function assignVideoToLesson(
+  videoId: string,
+  input: AssignVideoInput
+): Promise<VideoDetailResponse> {
+  return apiPatch<VideoDetailResponse, AssignVideoInput>(
+    `/api/videos/${videoId}/assign`,
+    input
+  );
+}
+
+/**
+ * List videos assigned to a specific lesson
+ */
+async function getVideosForLesson(
+  lessonId: string
+): Promise<{ videos: Video[]; lessonId: string }> {
+  return apiGet<{ videos: Video[]; lessonId: string }>(`/api/lessons/${lessonId}/videos`);
+}
+
+/**
  * Complete upload flow: create upload URL, upload file, confirm, and return video ID
  */
 async function uploadVideo(
@@ -298,9 +339,12 @@ export const videosRpc = {
   confirmUpload,
   getEncodingStatus,
   listVideos,
+  listUnassignedVideos,
+  getVideosForLesson,
   getVideo,
   updateVideo,
   deleteVideo,
+  assignVideoToLesson,
   uploadVideo,
   pollVideoStatus,
   uploadAndWait,

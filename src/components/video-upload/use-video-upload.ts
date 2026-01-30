@@ -186,6 +186,7 @@ export function useVideoUpload(options: UseVideoUploadOptions = {}) {
         title: metadata.title,
         description: metadata.description,
         visibility: metadata.visibility,
+        moduleId: metadata.moduleId, // Required: video belongs to a module
         filename: selectedFile.file.name,
         fileSize: selectedFile.file.size,
         mimeType: selectedFile.file.type,
@@ -222,9 +223,19 @@ export function useVideoUpload(options: UseVideoUploadOptions = {}) {
         sourceWidth: selectedFile.width,
         sourceHeight: selectedFile.height,
         duration: selectedFile.duration,
+        qualities: metadata.qualities,
+        useAI: metadata.useAI,
       });
 
-      // Step 4: Start polling for encoding status
+      // Step 4: Assign video to lesson if selected
+      if (metadata.lessonId) {
+        await videosRpc.assignVideoToLesson(uploadData.videoId, {
+          lessonId: metadata.lessonId,
+          availableDays: metadata.availableDays,
+        });
+      }
+
+      // Step 5: Start polling for encoding status
       startEncodingPolling(uploadData.videoId);
 
     } catch (error) {

@@ -4,7 +4,16 @@ import { z } from 'zod';
 // Constants - Single Source of Truth
 // ============================================================================
 
-export const VIDEO_QUALITY = ['1080p', '720p', '480p'] as const;
+export const VIDEO_QUALITY = ['1080p', '720p', '480p', '360p', '240p'] as const;
+
+// Human-readable quality labels for UI display
+export const VIDEO_QUALITY_LABELS: Record<(typeof VIDEO_QUALITY)[number], string> = {
+  '1080p': '1080p HD',
+  '720p': '720p',
+  '480p': '480p',
+  '360p': '360p',
+  '240p': '240p',
+};
 export const QUALITY_STATUS = ['pending', 'encoding', 'ready', 'error', 'skipped'] as const;
 export const ENCODING_JOB_STATUS = ['pending', 'queued', 'processing', 'completed', 'failed', 'cancelled'] as const;
 export const ENCODING_JOB_TYPE = ['encode', 'thumbnail'] as const;
@@ -15,6 +24,7 @@ export const WEBHOOK_EVENT_TYPE = [
   'job.completed',
   'job.failed',
   'thumbnail.generated',
+  'audio.extracted',
 ] as const;
 
 // ============================================================================
@@ -35,6 +45,8 @@ export const R2_PATHS = {
   raw: (videoId: string, filename: string) => `videos/raw/${videoId}/${filename}`,
   encoded: (videoId: string, quality: VideoQuality) => `videos/encoded/${videoId}/${quality}.mp4`,
   thumbnail: (videoId: string) => `videos/thumbnails/${videoId}.jpg`,
+  audio: (videoId: string) => `videos/audio/${videoId}/audio_for_stt.wav`,
+  transcript: (videoId: string) => `videos/transcripts/${videoId}/transcript.json`,
 } as const;
 
 // ============================================================================
@@ -53,6 +65,8 @@ export const DEFAULT_QUALITY_CONFIGS: QualityConfig[] = [
   { quality: '1080p', width: 1920, height: 1080, bitrate: 5000, audioBitrate: 192 },
   { quality: '720p', width: 1280, height: 720, bitrate: 2500, audioBitrate: 128 },
   { quality: '480p', width: 854, height: 480, bitrate: 1000, audioBitrate: 96 },
+  { quality: '360p', width: 640, height: 360, bitrate: 600, audioBitrate: 64 },
+  { quality: '240p', width: 426, height: 240, bitrate: 300, audioBitrate: 48 },
 ];
 
 // ============================================================================
@@ -81,6 +95,10 @@ export interface EncodingJobCallback {
   webhookSecret: string;
 }
 
+export interface EncodingJobAudioForStt {
+  enabled: boolean;
+}
+
 export interface EncodingJobMetadata {
   userId: string;
   title?: string;
@@ -94,6 +112,7 @@ export interface EncodingJobMessage {
   output: EncodingJobOutput;
   qualities: QualityConfig[];
   thumbnail: EncodingJobThumbnail;
+  audioForStt: EncodingJobAudioForStt;
   callback: EncodingJobCallback;
   metadata: EncodingJobMetadata;
 }
@@ -172,13 +191,27 @@ export interface WebhookThumbnailGenerated extends WebhookBase {
   };
 }
 
+export interface WebhookAudioExtracted extends WebhookBase {
+  event: 'audio.extracted';
+  data: {
+    outputPath: string;
+    fileSizeBytes: number;
+    durationSeconds: number;
+    format: string;
+    sampleRate: number;
+    channels: number;
+    bitDepth: number;
+  };
+}
+
 export type WebhookPayload =
   | WebhookJobStarted
   | WebhookJobProgress
   | WebhookQualityCompleted
   | WebhookJobCompleted
   | WebhookJobFailed
-  | WebhookThumbnailGenerated;
+  | WebhookThumbnailGenerated
+  | WebhookAudioExtracted;
 
 // ============================================================================
 // Zod Schemas for Validation
@@ -259,6 +292,21 @@ export const webhookPayloadSchema = z.discriminatedUnion('event', [
       r2Path: z.string(),
       width: z.number(),
       height: z.number(),
+    }),
+  }),
+  z.object({
+    event: z.literal('audio.extracted'),
+    jobId: z.string(),
+    videoId: z.string(),
+    timestamp: z.string(),
+    data: z.object({
+      outputPath: z.string(),
+      fileSizeBytes: z.number(),
+      durationSeconds: z.number(),
+      format: z.string(),
+      sampleRate: z.number(),
+      channels: z.number(),
+      bitDepth: z.number(),
     }),
   }),
 ]);

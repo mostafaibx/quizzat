@@ -47,3 +47,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+quizy-474313-c20b9ff7dcb3.json

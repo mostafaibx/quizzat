@@ -14,8 +14,14 @@ export interface VideoMetadata {
   title: string;
   description?: string;
   visibility: VideoVisibility;
-  lessonId?: string;
+  moduleId: string; // Required: video must belong to a module
+  unitId?: string; // Optional: needed for redirect to lesson page
+  lessonId?: string; // Optional: video can be assigned to a lesson
   availableDays?: number;
+  /** Selected video qualities to encode */
+  qualities: VideoQuality[];
+  /** Enable AI features (audio extraction for transcription) */
+  useAI: boolean;
 }
 
 export interface EncodingVariantStatus {

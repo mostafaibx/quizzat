@@ -47,7 +47,6 @@ export default function VideoUploadPage() {
             visibilityPublicDesc: t('form.visibilityPublicDesc'),
             upload: t('form.upload'),
             uploading: t('form.uploading'),
-            assignToLesson: t('form.assignToLesson'),
             availableDays: t('form.availableDays'),
             availableDaysHint: t('form.availableDaysHint'),
             module: t('form.module'),

@@ -45,7 +45,7 @@ interface ServiceAccountCredentials {
  */
 async function createJWT(
   credentials: ServiceAccountCredentials,
-  audience: string
+  scope: string
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 3600; // 1 hour expiry
@@ -59,7 +59,8 @@ async function createJWT(
   const payload = {
     iss: credentials.client_email,
     sub: credentials.client_email,
-    aud: audience,
+    aud: 'https://oauth2.googleapis.com/token', // Token endpoint, not API
+    scope, // OAuth scope for the API
     iat: now,
     exp,
   };
@@ -115,7 +116,7 @@ async function getAccessToken(
 ): Promise<string> {
   const jwt = await createJWT(
     credentials,
-    'https://pubsub.googleapis.com/'
+    'https://www.googleapis.com/auth/pubsub' // Pub/Sub OAuth scope
   );
 
   const response = await fetch(credentials.token_uri, {
@@ -149,13 +150,17 @@ export async function publishEncodingJob(
   config: PubSubConfig,
   message: EncodingJobMessage
 ): Promise<PublishResult> {
-  const credentials = JSON.parse(config.serviceAccountKey) as ServiceAccountCredentials;
+  // Decode base64-encoded service account key
+  const decodedKey = atob(config.serviceAccountKey);
+  const credentials = JSON.parse(decodedKey) as ServiceAccountCredentials;
   const accessToken = await getAccessToken(credentials);
 
   const url = `https://pubsub.googleapis.com/v1/projects/${config.projectId}/topics/${config.topicName}:publish`;
 
-  // Base64 encode the message data
-  const messageData = btoa(JSON.stringify(message));
+  // Base64 encode the message data (handle Unicode characters like Arabic titles)
+  const messageJson = JSON.stringify(message);
+  const messageBytes = new TextEncoder().encode(messageJson);
+  const messageData = btoa(String.fromCharCode(...messageBytes));
 
   const response = await fetch(url, {
     method: 'POST',

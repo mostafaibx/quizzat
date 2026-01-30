@@ -15,7 +15,7 @@ export type {
   VideoDetailResponse,
   UpdateVideoRequest,
   DeleteVideoResult,
-  RefreshStatusResponse,
+  EncodingStatusResponse,
   ListVideosOptions,
 } from './videos';
 
