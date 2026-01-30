@@ -27,7 +27,7 @@ import { indexVideoTranscript } from '@/server/services/rag';
 // ============================================================================
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash-lite';
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB for inline data
 
 /**

@@ -1,7 +1,7 @@
 /**
  * Embedding Service
  *
- * Generate embeddings using Google Gemini's text-embedding-004 model.
+ * Generate embeddings using Google Gemini's gemini-embedding-001 model.
  * Optimized for multilingual content (Egyptian Arabic + English).
  */
 

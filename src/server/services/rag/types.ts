@@ -139,8 +139,8 @@ export const RAG_CONSTANTS = {
   /** Number of segments to overlap between chunks */
   CHUNK_OVERLAP_SEGMENTS: 1,
   /** Gemini embedding model */
-  EMBEDDING_MODEL: 'text-embedding-004',
-  /** Embedding dimensions (Gemini text-embedding-004 uses 768) */
+  EMBEDDING_MODEL: 'gemini-embedding-001',
+  /** Embedding dimensions (gemini-embedding-001 uses 768) */
   EMBEDDING_DIMENSIONS: 768,
   /** Maximum texts per embedding batch */
   EMBEDDING_BATCH_SIZE: 100,
