@@ -84,7 +84,7 @@
       "vectorize": [
         {
           "binding": "VECTORIZE",
-          "index_name": "quizy-embeddings-preview"
+          "index_name": "quizy-embeddings"
         }
       ]
     },
