@@ -90,6 +90,9 @@
     },
     "production": {
       "name": "quizat",
+      "vars": {
+        "R2_BUCKET_NAME": "quizat-files"
+      },
       "d1_databases": [
         {
           "binding": "DB",
