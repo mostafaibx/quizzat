@@ -9,7 +9,7 @@
   // Environment variables (set via wrangler secret or dashboard for sensitive values)
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "",
-    "R2_BUCKET_NAME": "quizat-eg-files",
+    "R2_BUCKET_NAME": "quizat-files",
     "R2_PUBLIC_URL": ""
     // GCP_PROJECT_ID, GCP_PUBSUB_TOPIC, GCP_SERVICE_ACCOUNT_KEY, ENCODING_WEBHOOK_SECRET
     // should be set via wrangler secret for security
@@ -31,12 +31,12 @@
     }
   ],
 
-  // R2 Bucket for file storage
+  // R2 Bucket for file storage (production bucket - preview uses env.preview config)
   "r2_buckets": [
     {
       "binding": "FILES",
-      "bucket_name": "quizat-files",
-      "preview_bucket_name": "quizat-files-preview"    }
+      "bucket_name": "quizat-files"
+    }
   ],
 
   // KV Namespace for Next.js incremental cache
@@ -61,6 +61,9 @@
   "env": {
     "preview": {
       "name": "quizat-preview",
+      "vars": {
+        "R2_BUCKET_NAME": "quizat-files-preview"
+      },
       "d1_databases": [
         {
           "binding": "DB",
