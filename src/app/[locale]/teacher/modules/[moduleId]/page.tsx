@@ -1,4 +1,4 @@
-import { ModuleEditor } from '@/components/teacher';
+import { ModuleEditor } from '@/components/features/modules/teacher';
 
 interface ModulePageProps {
   params: Promise<{

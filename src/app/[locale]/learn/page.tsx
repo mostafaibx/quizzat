@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-import { StudentDashboard } from '@/components/student';
-import { UnauthorizedAlert } from '@/components/auth';
+import { StudentDashboard } from '@/components/features/dashboard/student';
+import { UnauthorizedAlert } from '@/components/features/auth';
 
 export default function LearnPage() {
   return (

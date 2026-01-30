@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
-import { VideoUploader } from '@/components/video-upload';
+import { VideoUploader } from '@/components/features/videos/upload';
 
 export default function VideoUploadPage() {
   const t = useTranslations('videos');

@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/auth-server';
 import { AUTH_ROLES, ROLE_HIERARCHY } from '@/types/auth.types';
 import type { UserRole } from '@/types/auth.types';
-import { TeacherLayout } from '@/components/teacher';
-import { UnauthorizedAlert } from '@/components/auth';
+import { TeacherLayout } from '@/components/features/layout/teacher';
+import { UnauthorizedAlert } from '@/components/features/auth';
 
 interface TeacherRootLayoutProps {
   children: React.ReactNode;

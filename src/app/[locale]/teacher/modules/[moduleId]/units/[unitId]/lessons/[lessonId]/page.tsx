@@ -1,4 +1,4 @@
-import { LessonEditor } from '@/components/teacher';
+import { LessonEditor } from '@/components/features/lessons/teacher';
 
 interface LessonPageProps {
   params: Promise<{

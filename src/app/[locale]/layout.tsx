@@ -2,7 +2,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { locales, localeDirections, Locale } from '@/i18n/config';
-import { AppHeader } from '@/components/layout';
+import { AppHeader } from '@/components/shared/layout';
 
 export default async function LocaleLayout({
   children,

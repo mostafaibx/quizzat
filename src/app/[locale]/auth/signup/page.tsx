@@ -1,42 +1,43 @@
-"use client";
-
-import { useState, Suspense } from "react";
-import { useSearchParams, useParams } from "next/navigation";
-import { AuthCard } from "@/components/auth/auth-card";
-import { GoogleSignInButton } from "@/components/auth/google-signin-button";
-import { SignUpForm } from "@/components/auth/signup-form";
-import { ErrorAlert } from "@/components/auth/error-alert";
-import { Divider } from "@/components/auth/divider";
+import { redirect } from 'next/navigation';
+import { Suspense } from "react";
+import { getAuthSession } from '@/lib/auth-server';
+import { AUTH_ROLES } from '@/types/auth.types';
+import type { UserRole } from '@/types/auth.types';
+import { SignUpFormComponent } from './signup-form';
 import { Card, CardContent } from "@/components/ui/card";
-import { useTranslations } from "next-intl";
+import { getTranslations } from 'next-intl/server';
 
-function SignUp() {
-  const searchParams = useSearchParams();
-  const params = useParams();
-  const locale = params.locale as string;
-  const callbackUrl = searchParams.get("callbackUrl") || `/${locale}/dashboard`;
-  const tAuth = useTranslations('auth');
-  const tNav = useTranslations('navigation');
-  const [error, setError] = useState("");
-
-  return (
-    <AuthCard
-      title={tAuth('signupTitle')}
-      description={tAuth('signupDescription')}
-      footerText={tAuth('hasAccount')}
-      footerLinkText={tNav('login')}
-      footerLinkHref={`/${locale}/auth/signin`}
-    >
-      <ErrorAlert message={error} />
-      <GoogleSignInButton callbackUrl={callbackUrl} text={tAuth('signupWithGoogle')} />
-      <Divider />
-      <SignUpForm callbackUrl={callbackUrl} onError={setError} />
-    </AuthCard>
-  );
+interface SignUpPageProps {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ callbackUrl?: string }>;
 }
 
-export default function SignUpPage() {
-  const t = useTranslations('common');
+export default async function SignUpPage({ params, searchParams }: SignUpPageProps) {
+  const { locale } = await params;
+  const { callbackUrl } = await searchParams;
+  
+  // Check if user is already logged in
+  const session = await getAuthSession();
+  
+  if (session?.user) {
+    // Redirect to appropriate dashboard based on role
+    const userRole = (session.user.role as UserRole) || AUTH_ROLES.STUDENT;
+    
+    // If there's a callback URL, use it
+    if (callbackUrl) {
+      redirect(callbackUrl);
+    }
+    
+    // Otherwise redirect based on role
+    if (userRole === AUTH_ROLES.ADMIN || userRole === AUTH_ROLES.TEACHER) {
+      redirect(`/${locale}/teacher`);
+    } else {
+      redirect(`/${locale}/learn`);
+    }
+  }
+
+  const t = await getTranslations('common');
+
   return (
     <Suspense fallback={
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
@@ -47,7 +48,7 @@ export default function SignUpPage() {
         </Card>
       </div>
     }>
-      <SignUp />
+      <SignUpFormComponent locale={locale} callbackUrl={callbackUrl} />
     </Suspense>
   );
 }
