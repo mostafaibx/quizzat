@@ -1,7 +1,7 @@
 /**
  * Embedding Service
  *
- * Generate embeddings using Google Gemini's gemini-embedding-001 model.
+ * Generate embeddings using Google Gemini's text-embedding-004 model.
  * Optimized for multilingual content (Egyptian Arabic + English).
  */
 
@@ -37,6 +37,7 @@ export async function embedText(deps: EmbeddingDeps, text: string): Promise<numb
 
 /**
  * Generate embeddings for multiple texts in batches.
+ * Uses text-embedding-004 which produces 768-dimensional vectors.
  *
  * @param deps - Service dependencies
  * @param texts - Array of texts to embed

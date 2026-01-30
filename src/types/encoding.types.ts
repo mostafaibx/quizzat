@@ -327,7 +327,7 @@ export interface EncodingStatusVariant {
 
 export interface EncodingStatusResponse {
   videoId: string;
-  status: 'uploading' | 'encoding' | 'ready' | 'error';
+  status: import('./video.types').VideoStatus;
   overallProgress: number;
   variants: EncodingStatusVariant[];
   thumbnailUrl?: string;

@@ -391,11 +391,24 @@ export async function processWebhook(
     case 'job.completed': {
       await updateJobStatus(deps, jobId, 'completed', 100);
 
-      // Update video status to ready
+      // Get current video to check if transcription is in progress
+      const [currentVideo] = await deps.db
+        .select({ status: videos.status })
+        .from(videos)
+        .where(eq(videos.id, videoId))
+        .limit(1);
+
+      // Only set to 'ready' if not already transcribing/indexing
+      // (audio.extracted event would have set it to 'transcribing')
+      const skipReadyStatuses = ['transcribing', 'indexing', 'ready', 'failed_transcription', 'failed_indexing'];
+      const newStatus = currentVideo && skipReadyStatuses.includes(currentVideo.status)
+        ? currentVideo.status
+        : 'ready';
+
       await deps.db
         .update(videos)
         .set({
-          status: 'ready',
+          status: newStatus,
           duration: Math.round(payload.data.duration),
           updatedAt: now,
         })
@@ -422,12 +435,12 @@ export async function processWebhook(
         await updateVariantStatus(deps, videoId, payload.data.quality, 'error');
       }
 
-      // Update video status to error
+      // Update video status to failed_encoding
       await deps.db
         .update(videos)
         .set({
-          status: 'error',
-          lastError: payload.data.errorMessage,
+          status: 'failed_encoding',
+          errorMessage: payload.data.errorMessage,
           updatedAt: now,
         })
         .where(eq(videos.id, videoId));
@@ -457,11 +470,12 @@ export async function processWebhook(
     }
 
     case 'audio.extracted': {
-      // STT audio has been extracted - store the path
+      // STT audio has been extracted - store the path and set status to transcribing
       await deps.db
         .update(videos)
         .set({
           sttAudioPath: payload.data.outputPath,
+          status: 'transcribing',
           updatedAt: now,
         })
         .where(eq(videos.id, videoId));
@@ -483,7 +497,15 @@ export async function processWebhook(
           console.error(`[Encoding] Auto-transcription failed for video ${videoId}:`, err);
         });
       } else {
+        // No Gemini API key - skip transcription and go straight to ready
         console.log(`[Encoding] Skipping auto-transcription for video ${videoId} (Gemini API key not configured)`);
+        await deps.db
+          .update(videos)
+          .set({
+            status: 'ready',
+            updatedAt: now,
+          })
+          .where(eq(videos.id, videoId));
       }
       break;
     }
@@ -617,4 +639,21 @@ export async function cancelJob(deps: EncodingServiceDeps, jobId: string): Promi
       updatedAt: now,
     })
     .where(eq(encodingJobs.id, jobId));
+}
+
+/**
+ * Gets the most recent failed encoding job for a video.
+ */
+export async function getFailedEncodeJobForVideo(
+  deps: EncodingServiceDeps,
+  videoId: string
+): Promise<EncodingJob | null> {
+  const [job] = await deps.db
+    .select()
+    .from(encodingJobs)
+    .where(and(eq(encodingJobs.videoId, videoId), eq(encodingJobs.status, 'failed')))
+    .orderBy(desc(encodingJobs.createdAt))
+    .limit(1);
+
+  return job ?? null;
 }

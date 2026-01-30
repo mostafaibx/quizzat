@@ -6,7 +6,31 @@ import { VIDEO_QUALITY, type VideoQuality, type EncodingStatusVariant } from './
 // ============================================================================
 
 export const VIDEO_VISIBILITY = ['private', 'unlisted', 'public'] as const;
-export const VIDEO_STATUS = ['pending', 'uploading', 'encoding', 'ready', 'error'] as const;
+
+/**
+ * Unified video processing status.
+ * Tracks the full pipeline: upload → encoding → transcription → RAG indexing
+ */
+export const VIDEO_STATUS = [
+  'pending',              // Initial state
+  'uploading',            // Upload to R2 in progress
+  'encoding',             // External encoding service processing
+  'transcribing',         // Audio transcription in progress
+  'indexing',             // RAG indexing in progress
+  'ready',                // Fully processed and available
+  'failed_encoding',      // Encoding failed
+  'failed_transcription', // Transcription failed
+  'failed_indexing',      // RAG indexing failed
+] as const;
+
+/** Status values that indicate a failure */
+export const VIDEO_FAILED_STATUSES = [
+  'failed_encoding',
+  'failed_transcription',
+  'failed_indexing',
+] as const;
+
+export type VideoFailedStatus = (typeof VIDEO_FAILED_STATUSES)[number];
 
 // ============================================================================
 // Base Types
@@ -131,7 +155,7 @@ export interface VideoWithEncodingStatus {
   playback: VideoPlayback | null;
   encodingProgress?: number;
   variants?: EncodingStatusVariant[];
-  lastError?: string | null;
+  errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
 }

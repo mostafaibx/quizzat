@@ -11,7 +11,11 @@ import {
   getTranscript,
   getTranscriptionStatus,
 } from '../services/transcription.service';
-import { searchTranscripts } from '../services/rag';
+import { searchTranscripts, retryVideoIndexing } from '../services/rag';
+import {
+  getFailedEncodeJobForVideo,
+  retryFailedJob,
+} from '../services/encoding-job.service';
 import {
   createUploadSchema,
   updateVideoSchema,
@@ -466,6 +470,7 @@ videosRoutes.post('/videos/:id/transcribe', requireTeacher, async (c) => {
       db: drizzle(c.env.DB),
       r2Bucket: c.env.FILES,
       geminiApiKey,
+      vectorize: c.env.VECTORIZE,
     },
     videoId
   );
@@ -539,6 +544,115 @@ videosRoutes.get('/videos/:id/transcription-status', authMiddleware, async (c) =
   });
 });
 
+
+// ============================================================================
+// Retry Endpoints
+// ============================================================================
+
+/**
+ * POST /videos/:id/retry-encoding
+ * Retries a failed encoding job for the video.
+ * Only owner or admin can retry.
+ */
+videosRoutes.post('/videos/:id/retry-encoding', requireTeacher, async (c) => {
+  const user = getAuthenticatedUser(c);
+  const videoId = c.req.param('id');
+
+  const video = await findVideoById(getDeps(c.env), videoId);
+
+  if (!video) {
+    throw ApiErrors.notFound('Video', videoId);
+  }
+
+  if (!canModifyVideo(video, user)) {
+    throw ApiErrors.forbidden('You do not have permission to retry encoding for this video');
+  }
+
+  if (video.status !== 'failed_encoding') {
+    throw ApiErrors.badRequest('Video is not in failed_encoding state');
+  }
+
+  const failedJob = await getFailedEncodeJobForVideo(getDeps(c.env), videoId);
+
+  if (!failedJob) {
+    throw ApiErrors.badRequest('No failed encoding job found for this video');
+  }
+
+  const deps = getDepsWithEncoding(c.env);
+  const result = await retryFailedJob(deps, failedJob.id);
+
+  if (!result) {
+    throw ApiErrors.internal('Failed to retry encoding job');
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      videoId,
+      jobId: result.jobId,
+      messageId: result.messageId,
+    },
+  });
+});
+
+/**
+ * POST /videos/:id/retry-indexing
+ * Retries failed RAG indexing for the video.
+ * Only owner or admin can retry.
+ */
+videosRoutes.post('/videos/:id/retry-indexing', requireTeacher, async (c) => {
+  const user = getAuthenticatedUser(c);
+  const videoId = c.req.param('id');
+
+  const video = await findVideoById(getDeps(c.env), videoId);
+
+  if (!video) {
+    throw ApiErrors.notFound('Video', videoId);
+  }
+
+  if (!canModifyVideo(video, user)) {
+    throw ApiErrors.forbidden('You do not have permission to retry indexing for this video');
+  }
+
+  if (video.status !== 'failed_indexing') {
+    throw ApiErrors.badRequest('Video is not in failed_indexing state');
+  }
+
+  if (!video.transcriptPath) {
+    throw ApiErrors.badRequest('Video does not have a transcript to index');
+  }
+
+  const geminiApiKey = c.env.GEMINI_API_KEY;
+  if (!geminiApiKey) {
+    throw ApiErrors.internal('Gemini API key is not configured');
+  }
+
+  const vectorize = c.env.VECTORIZE;
+  if (!vectorize) {
+    throw ApiErrors.internal('Vectorize is not configured');
+  }
+
+  const result = await retryVideoIndexing(
+    {
+      db: drizzle(c.env.DB),
+      r2Bucket: c.env.FILES,
+      geminiApiKey,
+      vectorize,
+    },
+    videoId
+  );
+
+  return c.json({
+    success: result.status === 'ready',
+    data: {
+      videoId,
+      status: result.status,
+      chunksCreated: result.chunksCreated,
+      embeddingsStored: result.embeddingsStored,
+      error: result.error,
+    },
+  });
+});
 
 // ============================================================================
 // Webhook Endpoint

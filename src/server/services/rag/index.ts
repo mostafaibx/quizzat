@@ -10,6 +10,7 @@
 
 import { eq } from 'drizzle-orm';
 import { videos } from '@/db/schema';
+import type { VideoStatus } from '@/types/video.types';
 import type { TranscriptData } from '@/types/transcription.types';
 import {
   type RagServiceDeps,
@@ -151,4 +152,66 @@ export async function getVideoChunks(
   videoId: string
 ) {
   return getChunksForVideo(deps, videoId);
+}
+
+/**
+ * Retry RAG indexing for a video that previously failed.
+ * Updates video status to 'indexing' then 'ready' or 'failed_indexing'.
+ *
+ * @param deps - Service dependencies
+ * @param videoId - The video ID to re-index
+ * @returns Indexing result with statistics
+ */
+export async function retryVideoIndexing(
+  deps: RagServiceDeps,
+  videoId: string
+): Promise<IndexingResult & { status: 'ready' | 'failed_indexing'; error?: string }> {
+  const now = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+  // Set status to indexing
+  await deps.db
+    .update(videos)
+    .set({
+      status: 'indexing',
+      errorMessage: null,
+      updatedAt: now(),
+    })
+    .where(eq(videos.id, videoId));
+
+  try {
+    const result = await indexVideoTranscript(deps, videoId);
+
+    // Set status to ready
+    await deps.db
+      .update(videos)
+      .set({
+        status: 'ready',
+        updatedAt: now(),
+      })
+      .where(eq(videos.id, videoId));
+
+    return { ...result, status: 'ready' };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'RAG indexing failed';
+    console.error(`[RAG] Retry indexing failed for video ${videoId}:`, error);
+
+    // Set status to failed_indexing
+    await deps.db
+      .update(videos)
+      .set({
+        status: 'failed_indexing',
+        errorMessage: errorMsg,
+        updatedAt: now(),
+      })
+      .where(eq(videos.id, videoId));
+
+    return {
+      videoId,
+      chunksCreated: 0,
+      embeddingsStored: 0,
+      processingTimeMs: 0,
+      status: 'failed_indexing',
+      error: errorMsg,
+    };
+  }
 }

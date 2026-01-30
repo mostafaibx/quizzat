@@ -40,8 +40,12 @@ const statusConfig: Record<VideoStatus, { label: string; color: string; icon?: R
   pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
   uploading: { label: 'Uploading', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
   encoding: { label: 'Encoding', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
+  transcribing: { label: 'Transcribing', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
+  indexing: { label: 'Indexing', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
   ready: { label: 'Ready', color: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
-  error: { label: 'Error', color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: <AlertCircle className="h-3 w-3" /> },
+  failed_encoding: { label: 'Encoding Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: <AlertCircle className="h-3 w-3" /> },
+  failed_transcription: { label: 'Transcription Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: <AlertCircle className="h-3 w-3" /> },
+  failed_indexing: { label: 'Indexing Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300', icon: <AlertCircle className="h-3 w-3" /> },
 };
 
 export function LessonVideos({ lessonId, moduleId, onVideoCountChange }: LessonVideosProps) {
@@ -72,16 +76,17 @@ export function LessonVideos({ lessonId, moduleId, onVideoCountChange }: LessonV
     fetchVideos();
   }, [fetchVideos]);
 
-  // Poll for encoding status updates
+  // Poll for processing status updates (encoding, transcribing, indexing)
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    const hasEncodingVideos = videos.some((v) => v.status === 'encoding' || v.status === 'uploading');
+    const processingStatuses = ['uploading', 'encoding', 'transcribing', 'indexing'];
+    const hasProcessingVideos = videos.some((v) => processingStatuses.includes(v.status));
 
-    if (hasEncodingVideos && !pollingRef.current) {
+    if (hasProcessingVideos && !pollingRef.current) {
       pollingRef.current = setInterval(() => {
         fetchVideos();
       }, 5000); // Poll every 5 seconds
-    } else if (!hasEncodingVideos && pollingRef.current) {
+    } else if (!hasProcessingVideos && pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }

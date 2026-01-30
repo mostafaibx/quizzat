@@ -17,8 +17,8 @@ import {
   type TranscriptionResult,
   type TranscriptionJobInput,
   type TranscriptData,
-  type TranscriptionStatus,
 } from '@/types/transcription.types';
+import type { VideoStatus } from '@/types/video.types';
 import { R2_PATHS } from '@/types/encoding.types';
 import { indexVideoTranscript } from '@/server/services/rag';
 
@@ -27,8 +27,9 @@ import { indexVideoTranscript } from '@/server/services/rag';
 // ============================================================================
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_UPLOAD_URL = 'https://generativelanguage.googleapis.com/upload/v1beta';
 const GEMINI_MODEL = 'gemini-2.5-flash-lite';
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB for inline data
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100MB with File API
 
 /**
  * Configuration for Egyptian Arabic transcription with English code-switching.
@@ -67,6 +68,64 @@ Transcribe the audio now:`;
  */
 function now(): string {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+/**
+ * Uploads audio to Gemini File API and returns the file URI.
+ * This avoids CPU-intensive base64 encoding in Cloudflare Workers.
+ */
+async function uploadToGeminiFileApi(
+  audioBuffer: ArrayBuffer,
+  apiKey: string
+): Promise<string> {
+  const numBytes = audioBuffer.byteLength;
+
+  // Start resumable upload
+  const startResponse = await fetch(
+    `${GEMINI_UPLOAD_URL}/files?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Upload-Protocol': 'resumable',
+        'X-Goog-Upload-Command': 'start',
+        'X-Goog-Upload-Header-Content-Length': numBytes.toString(),
+        'X-Goog-Upload-Header-Content-Type': 'audio/wav',
+      },
+      body: JSON.stringify({
+        file: { displayName: `audio_${Date.now()}.wav` },
+      }),
+    }
+  );
+
+  if (!startResponse.ok) {
+    const errorText = await startResponse.text();
+    throw new Error(`Gemini upload start failed: ${startResponse.status} - ${errorText}`);
+  }
+
+  const uploadUrl = startResponse.headers.get('X-Goog-Upload-URL');
+  if (!uploadUrl) {
+    throw new Error('No upload URL returned from Gemini');
+  }
+
+  // Upload the file content
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Length': numBytes.toString(),
+      'X-Goog-Upload-Offset': '0',
+      'X-Goog-Upload-Command': 'upload, finalize',
+    },
+    body: audioBuffer,
+  });
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`Gemini upload failed: ${uploadResponse.status} - ${errorText}`);
+  }
+
+  const result = (await uploadResponse.json()) as { file: { uri: string; name: string } };
+  return result.file.uri;
 }
 
 /**
@@ -174,8 +233,8 @@ export async function transcribeAudio(
       return {
         success: false,
         videoId,
-        error: `Audio file exceeds 20MB limit (${Math.round(audioSizeBytes / 1024 / 1024)}MB)`,
-        status: 'skipped',
+        error: `Audio file exceeds 100MB limit (${Math.round(audioSizeBytes / 1024 / 1024)}MB)`,
+        status: 'failed_transcription',
       };
     }
 
@@ -189,7 +248,7 @@ export async function transcribeAudio(
         success: false,
         videoId,
         error: `Audio file not found at ${audioPath}`,
-        status: 'failed',
+        status: 'failed_transcription',
       };
     }
 
@@ -201,28 +260,21 @@ export async function transcribeAudio(
       return {
         success: false,
         videoId,
-        error: `Audio file exceeds 20MB limit (${Math.round(audioObject.size / 1024 / 1024)}MB)`,
-        status: 'skipped',
+        error: `Audio file exceeds 100MB limit (${Math.round(audioObject.size / 1024 / 1024)}MB)`,
+        status: 'failed_transcription',
       };
     }
 
-    // 4. Convert R2 stream to base64 for Gemini inline data
+    // 4. Upload audio to Gemini File API (avoids CPU-intensive base64 encoding)
     const audioArrayBuffer = await audioObject.arrayBuffer();
-    const audioBase64 = btoa(
-      new Uint8Array(audioArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
-
-    // Determine MIME type from path
-    const mimeType = audioPath.endsWith('.mp3')
-      ? 'audio/mp3'
-      : audioPath.endsWith('.m4a')
-        ? 'audio/mp4'
-        : 'audio/wav';
-
-    // 5. Call Gemini API with inline audio data
     console.log(
-      `[Transcription] Calling Gemini API for video ${videoId} (${Math.round(audioObject.size / 1024)}KB)`
+      `[Transcription] Uploading audio to Gemini for video ${videoId} (${Math.round(audioObject.size / 1024)}KB)`
     );
+    const fileUri = await uploadToGeminiFileApi(audioArrayBuffer, deps.geminiApiKey);
+    console.log(`[Transcription] Audio uploaded, fileUri: ${fileUri}`);
+
+    // 5. Call Gemini API with file reference
+    console.log(`[Transcription] Calling Gemini API for video ${videoId}`);
 
     const geminiResponse = await fetch(
       `${GEMINI_API_URL}/models/${GEMINI_MODEL}:generateContent?key=${deps.geminiApiKey}`,
@@ -237,9 +289,9 @@ export async function transcribeAudio(
               parts: [
                 { text: TRANSCRIPTION_PROMPT },
                 {
-                  inlineData: {
-                    mimeType,
-                    data: audioBase64,
+                  fileData: {
+                    mimeType: 'audio/wav',
+                    fileUri,
                   },
                 },
               ],
@@ -261,7 +313,7 @@ export async function transcribeAudio(
         success: false,
         videoId,
         error: `Gemini API error: ${geminiResponse.status} - ${errorText}`,
-        status: 'failed',
+        status: 'failed_transcription',
       };
     }
 
@@ -280,7 +332,7 @@ export async function transcribeAudio(
         success: false,
         videoId,
         error: `Gemini API error: ${geminiResult.error.message}`,
-        status: 'failed',
+        status: 'failed_transcription',
       };
     }
 
@@ -291,7 +343,7 @@ export async function transcribeAudio(
         success: false,
         videoId,
         error: 'Empty response from Gemini API',
-        status: 'failed',
+        status: 'failed_transcription',
       };
     }
 
@@ -327,11 +379,13 @@ export async function transcribeAudio(
         `Duration: ${Math.round(transcript.duration)}s, Segments: ${transcript.segments.length}`
     );
 
+    // Note: success here means transcription completed, but RAG indexing may still run
+    // The caller (processVideoTranscription) will set final status
     return {
       success: true,
       videoId,
       transcriptPath,
-      status: 'completed',
+      status: 'indexing', // Will proceed to RAG indexing
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -341,7 +395,7 @@ export async function transcribeAudio(
       success: false,
       videoId,
       error: errorMessage,
-      status: 'failed',
+      status: 'failed_transcription',
     };
   }
 }
@@ -376,7 +430,7 @@ export async function processVideoTranscription(
       success: false,
       videoId,
       error: 'Video not found',
-      status: 'failed',
+      status: 'failed_transcription',
     };
   }
 
@@ -386,16 +440,16 @@ export async function processVideoTranscription(
       success: false,
       videoId,
       error: 'No STT audio path available',
-      status: 'skipped',
+      status: 'failed_transcription',
     };
   }
 
-  // 2. Update status to processing
+  // 2. Update status to transcribing (may already be set by encoding webhook)
   await deps.db
     .update(videos)
     .set({
-      transcriptionStatus: 'processing',
-      transcriptionError: null,
+      status: 'transcribing',
+      errorMessage: null,
       updatedAt: now(),
     })
     .where(eq(videos.id, videoId));
@@ -411,18 +465,19 @@ export async function processVideoTranscription(
 
   // 4. Update database with result
   if (result.success) {
-    await deps.db
-      .update(videos)
-      .set({
-        transcriptPath: result.transcriptPath,
-        transcriptionStatus: 'completed',
-        transcriptionError: null,
-        updatedAt: now(),
-      })
-      .where(eq(videos.id, videoId));
-
     // 5. Trigger RAG indexing if Vectorize is available
     if (deps.vectorize) {
+      // Set status to indexing
+      await deps.db
+        .update(videos)
+        .set({
+          transcriptPath: result.transcriptPath,
+          status: 'indexing',
+          errorMessage: null,
+          updatedAt: now(),
+        })
+        .where(eq(videos.id, videoId));
+
       try {
         console.log(`[Transcription] Triggering RAG indexing for video ${videoId}`);
         const indexResult = await indexVideoTranscript(
@@ -438,23 +493,66 @@ export async function processVideoTranscription(
           `[Transcription] RAG indexing complete for video ${videoId}: ` +
             `${indexResult.chunksCreated} chunks, ${indexResult.embeddingsStored} embeddings`
         );
+
+        // Set status to ready after successful indexing
+        await deps.db
+          .update(videos)
+          .set({
+            status: 'ready',
+            updatedAt: now(),
+          })
+          .where(eq(videos.id, videoId));
+
+        return { ...result, status: 'ready' as const };
       } catch (indexError) {
-        // Log error but don't fail the transcription
+        // RAG indexing failed - set status to failed_indexing
+        const errorMsg = indexError instanceof Error ? indexError.message : 'RAG indexing failed';
         console.error(`[Transcription] RAG indexing failed for video ${videoId}:`, indexError);
+
+        await deps.db
+          .update(videos)
+          .set({
+            status: 'failed_indexing',
+            errorMessage: errorMsg,
+            updatedAt: now(),
+          })
+          .where(eq(videos.id, videoId));
+
+        return {
+          success: false,
+          videoId,
+          transcriptPath: result.transcriptPath,
+          error: errorMsg,
+          status: 'failed_indexing' as const,
+        };
       }
+    } else {
+      // No Vectorize - skip indexing and set to ready
+      await deps.db
+        .update(videos)
+        .set({
+          transcriptPath: result.transcriptPath,
+          status: 'ready',
+          errorMessage: null,
+          updatedAt: now(),
+        })
+        .where(eq(videos.id, videoId));
+
+      return { ...result, status: 'ready' as const };
     }
   } else {
+    // Transcription failed
     await deps.db
       .update(videos)
       .set({
-        transcriptionStatus: result.status,
-        transcriptionError: result.error,
+        status: result.status,
+        errorMessage: result.error,
         updatedAt: now(),
       })
       .where(eq(videos.id, videoId));
-  }
 
-  return result;
+    return result;
+  }
 }
 
 // ============================================================================
@@ -484,25 +582,25 @@ export async function getTranscript(
 }
 
 /**
- * Gets transcription status for a video from the database.
+ * Gets transcription/processing status for a video from the database.
  *
  * @param deps - Database dependency
  * @param videoId - The video ID
- * @returns Transcription status information or null if video not found
+ * @returns Video status information or null if video not found
  */
 export async function getTranscriptionStatus(
   deps: { db: DrizzleD1Database },
   videoId: string
 ): Promise<{
-  status: TranscriptionStatus | null;
+  status: VideoStatus | null;
   transcriptPath: string | null;
   error: string | null;
 } | null> {
   const [video] = await deps.db
     .select({
-      transcriptionStatus: videos.transcriptionStatus,
+      status: videos.status,
       transcriptPath: videos.transcriptPath,
-      transcriptionError: videos.transcriptionError,
+      errorMessage: videos.errorMessage,
     })
     .from(videos)
     .where(eq(videos.id, videoId))
@@ -513,8 +611,8 @@ export async function getTranscriptionStatus(
   }
 
   return {
-    status: video.transcriptionStatus as TranscriptionStatus | null,
+    status: video.status as VideoStatus | null,
     transcriptPath: video.transcriptPath,
-    error: video.transcriptionError,
+    error: video.errorMessage,
   };
 }

@@ -19,8 +19,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { videosRpc, type Video as VideoType } from '@/lib/rpc';
+import { VIDEO_FAILED_STATUSES, type VideoStatus, type VideoFailedStatus } from '@/types/video.types';
 
 type VideoItem = VideoType;
+
+const PROCESSING_STATUSES: VideoStatus[] = ['uploading', 'encoding', 'transcribing', 'indexing'];
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -63,15 +66,35 @@ function VideoCard({ video, locale }: { video: VideoItem; locale: string }) {
   const t = useTranslations('videos');
 
   const getStatusBadge = () => {
-    const variants: Record<VideoItem['status'], { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
-      pending: { variant: 'outline', label: 'Pending' },
-      processing: { variant: 'secondary', label: 'Processing' },
-      ready: { variant: 'default', label: 'Ready' },
-      error: { variant: 'destructive', label: 'Error' },
-    };
     if (video.status === 'ready') return null;
-    const config = variants[video.status];
-    return <Badge variant={config.variant} className="absolute top-2 start-2">{config.label}</Badge>;
+
+    // Processing statuses
+    if (PROCESSING_STATUSES.includes(video.status as VideoStatus)) {
+      const labels: Record<string, string> = {
+        uploading: 'Uploading',
+        encoding: 'Encoding',
+        transcribing: 'Transcribing',
+        indexing: 'Indexing',
+      };
+      return <Badge variant="secondary" className="absolute top-2 start-2">{labels[video.status] || 'Processing'}</Badge>;
+    }
+
+    // Failed statuses
+    if (VIDEO_FAILED_STATUSES.includes(video.status as VideoFailedStatus)) {
+      const labels: Record<string, string> = {
+        failed_encoding: 'Encoding Failed',
+        failed_transcription: 'Transcription Failed',
+        failed_indexing: 'Indexing Failed',
+      };
+      return <Badge variant="destructive" className="absolute top-2 start-2">{labels[video.status] || 'Error'}</Badge>;
+    }
+
+    // Pending
+    if (video.status === 'pending') {
+      return <Badge variant="outline" className="absolute top-2 start-2">Pending</Badge>;
+    }
+
+    return null;
   };
 
   return (
@@ -96,7 +119,7 @@ function VideoCard({ video, locale }: { video: VideoItem; locale: string }) {
               {formatDuration(video.duration)}
             </div>
           )}
-          {video.status === 'processing' && (
+          {PROCESSING_STATUSES.includes(video.status as VideoStatus) && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-white" />
             </div>

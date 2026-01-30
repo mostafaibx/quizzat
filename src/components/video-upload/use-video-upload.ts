@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { videosRpc } from '@/lib/rpc';
+import { VIDEO_FAILED_STATUSES } from '@/types/video.types';
 import type { UploadState, VideoMetadata, VideoFile, EncodingVariantStatus } from './types';
 
 const ACCEPTED_VIDEO_TYPES = [
@@ -122,20 +123,21 @@ export function useVideoUpload(options: UseVideoUploadOptions = {}) {
           thumbnailUrl: status.thumbnailUrl,
         });
         options.onSuccess?.(videoId);
-      } else if (status.status === 'error') {
-        // Encoding failed
+      } else if (VIDEO_FAILED_STATUSES.includes(status.status as typeof VIDEO_FAILED_STATUSES[number])) {
+        // Processing failed (encoding, transcription, or indexing)
         if (pollingRef.current) {
           clearInterval(pollingRef.current);
           pollingRef.current = null;
         }
+        const errorMessage = status.error || `Processing failed at ${status.status.replace('failed_', '')} stage`;
         setUploadState({
           status: 'error',
           progress: 0,
           videoId,
-          error: status.error || 'Encoding failed',
+          error: errorMessage,
           variants,
         });
-        options.onError?.(status.error || 'Encoding failed');
+        options.onError?.(errorMessage);
       } else {
         // Still encoding
         setUploadState((prev) => ({

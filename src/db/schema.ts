@@ -145,10 +145,6 @@ export const videos = sqliteTable("videos", {
   sttAudioPath: text("stt_audio_path"),       // "videos/audio/{videoId}/audio_for_stt.wav"
   transcriptPath: text("transcript_path"),    // "videos/transcripts/{videoId}/transcript.json"
 
-  // Transcription status
-  transcriptionStatus: text("transcription_status").default("pending"), // pending | processing | completed | failed | skipped
-  transcriptionError: text("transcription_error"),  // Last transcription error message
-
   // Source video metadata
   sourceWidth: integer("source_width"),
   sourceHeight: integer("source_height"),
@@ -157,8 +153,9 @@ export const videos = sqliteTable("videos", {
   sourceMetadata: text("source_metadata"),   // JSON: codec, bitrate, fps, etc.
 
   duration: integer("duration"),              // seconds, populated after processing
-  status: text("status").notNull().default("pending"), // pending | uploading | encoding | ready | error
-  lastError: text("last_error"),              // Last error message
+  // Unified status tracking the full pipeline: upload → encoding → transcription → indexing
+  status: text("status").notNull().default("pending"), // pending | uploading | encoding | transcribing | indexing | ready | failed_encoding | failed_transcription | failed_indexing
+  errorMessage: text("error_message"),        // Error message when status is failed_*
 
   visibility: text("visibility").notNull().default("private"), // private | unlisted | public
   availableDays: integer("available_days").notNull().default(3), // Days video is available to students
@@ -272,7 +269,7 @@ export type TranscriptChunkRecord = InferSelectModel<typeof transcriptChunks>;
 export type NewTranscriptChunkRecord = InferInsertModel<typeof transcriptChunks>;
 
 // Re-export types from shared types files
-export type { VideoStatus, VideoVisibility } from "@/types/video.types";
+export type { VideoStatus, VideoVisibility, VideoFailedStatus } from "@/types/video.types";
 export type { ModuleStatus, LessonContentType } from "@/types/module.types";
 export type { EnrollmentStatus, LessonProgressStatus } from "@/types/enrollment.types";
 export type {
@@ -281,4 +278,3 @@ export type {
   EncodingJobStatus,
   EncodingJobType,
 } from "@/types/encoding.types";
-export type { TranscriptionStatus } from "@/types/transcription.types";

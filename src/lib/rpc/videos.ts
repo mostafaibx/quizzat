@@ -282,6 +282,7 @@ async function pollVideoStatus(
   const { maxAttempts = 60, intervalMs = 3000, onStatusChange } = options;
 
   let attempts = 0;
+  const terminalStates = ['ready', 'failed_encoding', 'failed_transcription', 'failed_indexing'];
 
   while (attempts < maxAttempts) {
     const status = await getEncodingStatus(videoId);
@@ -290,7 +291,7 @@ async function pollVideoStatus(
       onStatusChange(status);
     }
 
-    if (status?.status === 'ready' || status?.status === 'error') {
+    if (status && terminalStates.includes(status.status)) {
       const { video } = await getVideo(videoId);
       return video;
     }
@@ -300,6 +301,52 @@ async function pollVideoStatus(
   }
 
   throw new Error(`Polling timeout for video ${videoId}`);
+}
+
+// ============================================================================
+// Retry Methods
+// ============================================================================
+
+interface RetryEncodingResponse {
+  videoId: string;
+  jobId: string;
+  messageId?: string;
+}
+
+interface RetryTranscriptionResponse {
+  videoId: string;
+  status: VideoStatus;
+  transcriptPath?: string;
+  error?: string;
+}
+
+interface RetryIndexingResponse {
+  videoId: string;
+  status: 'ready' | 'failed_indexing';
+  chunksCreated: number;
+  embeddingsStored: number;
+  error?: string;
+}
+
+/**
+ * Retry a failed encoding job
+ */
+async function retryEncoding(videoId: string): Promise<RetryEncodingResponse> {
+  return apiPost<RetryEncodingResponse>(`/api/videos/${videoId}/retry-encoding`, {});
+}
+
+/**
+ * Retry a failed transcription
+ */
+async function retryTranscription(videoId: string): Promise<RetryTranscriptionResponse> {
+  return apiPost<RetryTranscriptionResponse>(`/api/videos/${videoId}/transcribe`, {});
+}
+
+/**
+ * Retry failed RAG indexing
+ */
+async function retryIndexing(videoId: string): Promise<RetryIndexingResponse> {
+  return apiPost<RetryIndexingResponse>(`/api/videos/${videoId}/retry-indexing`, {});
 }
 
 /**
@@ -348,4 +395,7 @@ export const videosRpc = {
   uploadVideo,
   pollVideoStatus,
   uploadAndWait,
+  retryEncoding,
+  retryTranscription,
+  retryIndexing,
 };

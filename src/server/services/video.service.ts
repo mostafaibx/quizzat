@@ -386,7 +386,7 @@ export async function updateVideoStatus(
   deps: ServiceDeps,
   videoId: string,
   status: VideoStatus,
-  meta?: { duration?: number; r2ThumbnailPath?: string; lastError?: string }
+  meta?: { duration?: number; r2ThumbnailPath?: string; errorMessage?: string }
 ): Promise<void> {
   const updateData: Record<string, unknown> = {
     status,
@@ -395,7 +395,7 @@ export async function updateVideoStatus(
 
   if (meta?.duration !== undefined) updateData.duration = meta.duration;
   if (meta?.r2ThumbnailPath !== undefined) updateData.r2ThumbnailPath = meta.r2ThumbnailPath;
-  if (meta?.lastError !== undefined) updateData.lastError = meta.lastError;
+  if (meta?.errorMessage !== undefined) updateData.errorMessage = meta.errorMessage;
 
   await deps.db.update(videos).set(updateData).where(eq(videos.id, videoId));
 }
@@ -546,6 +546,6 @@ export async function getEncodingStatus(
     overallProgress: progress,
     variants: variantStatus,
     thumbnailUrl,
-    error: video.lastError ?? undefined,
+    error: video.errorMessage ?? undefined,
   };
 }

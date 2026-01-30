@@ -31,11 +31,12 @@
     }
   ],
 
-  // R2 Bucket for file storage (production bucket - preview uses env.preview config)
+  // R2 Bucket for file storage
   "r2_buckets": [
     {
       "binding": "FILES",
-      "bucket_name": "quizat-files"
+      "bucket_name": "quizat-files",
+      "preview_bucket_name": "quizat-files-preview"
     }
   ],
 

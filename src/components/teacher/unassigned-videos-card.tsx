@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Check, Film, Video } from 'lucide-react';
+import { Loader2, Check, Film, Video, RotateCcw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,7 @@ import {
 import { VideoThumbnail } from './video-thumbnail';
 import { videosRpc } from '@/lib/rpc';
 import type { Module, Lesson, Video as VideoType } from '@/lib/rpc';
-import type { VideoStatus } from '@/types/video.types';
+import { VIDEO_FAILED_STATUSES, type VideoStatus, type VideoFailedStatus } from '@/types/video.types';
 
 interface UnassignedVideosCardProps {
   module: Module;
@@ -49,16 +49,17 @@ export function UnassignedVideosCard({ module, onVideoAssigned }: UnassignedVide
     fetchVideos();
   }, [fetchVideos]);
 
-  // Poll for encoding status updates
+  // Poll for processing status updates (encoding, transcribing, indexing)
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    const hasEncodingVideos = videos.some((v) => v.status === 'encoding' || v.status === 'uploading');
+    const processingStatuses = ['uploading', 'encoding', 'transcribing', 'indexing'];
+    const hasProcessingVideos = videos.some((v) => processingStatuses.includes(v.status));
 
-    if (hasEncodingVideos && !pollingRef.current) {
+    if (hasProcessingVideos && !pollingRef.current) {
       pollingRef.current = setInterval(() => {
         fetchVideos();
       }, 5000); // Poll every 5 seconds
-    } else if (!hasEncodingVideos && pollingRef.current) {
+    } else if (!hasProcessingVideos && pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
@@ -83,6 +84,23 @@ export function UnassignedVideosCard({ module, onVideoAssigned }: UnassignedVide
       throw error;
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const retryVideo = async (videoId: string, failedStatus: VideoFailedStatus) => {
+    try {
+      if (failedStatus === 'failed_encoding') {
+        await videosRpc.retryEncoding(videoId);
+      } else if (failedStatus === 'failed_transcription') {
+        await videosRpc.retryTranscription(videoId);
+      } else if (failedStatus === 'failed_indexing') {
+        await videosRpc.retryIndexing(videoId);
+      }
+      // Refresh the list to get updated status
+      fetchVideos();
+    } catch (error) {
+      console.error('Failed to retry video processing:', error);
+      throw error;
     }
   };
 
@@ -150,6 +168,7 @@ export function UnassignedVideosCard({ module, onVideoAssigned }: UnassignedVide
               video={video}
               lessons={lessons}
               onAssign={(lessonId) => assignVideo(video.id, lessonId)}
+              onRetry={(status) => retryVideo(video.id, status)}
               isAssigning={isAssigning}
             />
           ))}
@@ -167,13 +186,17 @@ interface UnassignedVideoItemProps {
   video: VideoType;
   lessons: LessonOption[];
   onAssign: (lessonId: string) => Promise<void>;
+  onRetry: (status: VideoFailedStatus) => Promise<void>;
   isAssigning: boolean;
 }
 
-function UnassignedVideoItem({ video, lessons, onAssign, isAssigning }: UnassignedVideoItemProps) {
+function UnassignedVideoItem({ video, lessons, onAssign, onRetry, isAssigning }: UnassignedVideoItemProps) {
   const t = useTranslations('teacher');
   const [selectedLessonId, setSelectedLessonId] = useState<string>('');
   const [isAssigningThis, setIsAssigningThis] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  const isFailedStatus = VIDEO_FAILED_STATUSES.includes(video.status as VideoFailedStatus);
 
   const handleAssign = async () => {
     if (!selectedLessonId) return;
@@ -182,6 +205,29 @@ function UnassignedVideoItem({ video, lessons, onAssign, isAssigning }: Unassign
       await onAssign(selectedLessonId);
     } finally {
       setIsAssigningThis(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!isFailedStatus) return;
+    setIsRetrying(true);
+    try {
+      await onRetry(video.status as VideoFailedStatus);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const getRetryButtonText = () => {
+    switch (video.status) {
+      case 'failed_encoding':
+        return t('retryEncoding');
+      case 'failed_transcription':
+        return t('retryTranscription');
+      case 'failed_indexing':
+        return t('retryIndexing');
+      default:
+        return t('retry');
     }
   };
 
@@ -207,40 +253,60 @@ function UnassignedVideoItem({ video, lessons, onAssign, isAssigning }: Unassign
         )}
       </div>
 
-      {/* Lesson selector */}
+      {/* Actions */}
       <div className="flex items-center gap-2 shrink-0">
-        <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t('selectLesson')} />
-          </SelectTrigger>
-          <SelectContent>
-            {lessons.length === 0 ? (
-              <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                {t('noLessonsAvailable')}
-              </div>
+        {isFailedStatus ? (
+          /* Retry button for failed videos */
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleRetry}
+            disabled={isRetrying}
+          >
+            {isRetrying ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
             ) : (
-              lessons.map((lesson) => (
-                <SelectItem key={lesson.id} value={lesson.id}>
-                  <span className="truncate">
-                    {lesson.unitTitle} / {lesson.title}
-                  </span>
-                </SelectItem>
-              ))
+              <RotateCcw className="h-4 w-4 mr-1" />
             )}
-          </SelectContent>
-        </Select>
+            {getRetryButtonText()}
+          </Button>
+        ) : (
+          /* Lesson selector for ready videos */
+          <>
+            <Select value={selectedLessonId} onValueChange={setSelectedLessonId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder={t('selectLesson')} />
+              </SelectTrigger>
+              <SelectContent>
+                {lessons.length === 0 ? (
+                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                    {t('noLessonsAvailable')}
+                  </div>
+                ) : (
+                  lessons.map((lesson) => (
+                    <SelectItem key={lesson.id} value={lesson.id}>
+                      <span className="truncate">
+                        {lesson.unitTitle} / {lesson.title}
+                      </span>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
 
-        <Button
-          size="sm"
-          onClick={handleAssign}
-          disabled={!selectedLessonId || isAssigningThis || isAssigning}
-        >
-          {isAssigningThis ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Check className="h-4 w-4" />
-          )}
-        </Button>
+            <Button
+              size="sm"
+              onClick={handleAssign}
+              disabled={!selectedLessonId || isAssigningThis || isAssigning || video.status !== 'ready'}
+            >
+              {isAssigningThis ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

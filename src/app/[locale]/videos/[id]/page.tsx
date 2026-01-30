@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { videosRpc, type Video } from '@/lib/rpc';
+import { VIDEO_FAILED_STATUSES, type VideoFailedStatus } from '@/types/video.types';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -145,12 +146,12 @@ export default function VideoDetailPage() {
                   </div>
                 ) : (
                   <div className="aspect-video bg-muted rounded-t-lg flex flex-col items-center justify-center gap-3">
-                    {video.status === 'processing' ? (
+                    {['encoding', 'transcribing', 'indexing'].includes(video.status) ? (
                       <>
                         <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
                         <p className="text-muted-foreground">{t('progress.processing')}</p>
                       </>
-                    ) : video.status === 'error' ? (
+                    ) : VIDEO_FAILED_STATUSES.includes(video.status as VideoFailedStatus) ? (
                       <>
                         <AlertCircle className="h-12 w-12 text-destructive" />
                         <p className="text-destructive">{t('progress.error')}</p>

@@ -11,15 +11,7 @@ import { z } from 'zod';
 // Constants
 // ============================================================================
 
-export const TRANSCRIPTION_STATUS = [
-  'pending',
-  'processing',
-  'completed',
-  'failed',
-  'skipped',
-] as const;
-
-export type TranscriptionStatus = (typeof TRANSCRIPTION_STATUS)[number];
+import type { VideoStatus } from './video.types';
 
 // ============================================================================
 // OpenAI Whisper API Types
@@ -164,7 +156,8 @@ export interface TranscriptionResult {
   videoId: string;
   transcriptPath?: string;
   error?: string;
-  status: TranscriptionStatus;
+  /** The video status after transcription attempt */
+  status: VideoStatus;
 }
 
 // ============================================================================

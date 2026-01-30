@@ -1,9 +1,8 @@
 'use client';
 
-import { Play, AlertCircle, Clock, Upload, Film } from 'lucide-react';
+import { Play, AlertCircle, Clock, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-type VideoStatus = 'pending' | 'uploading' | 'encoding' | 'ready' | 'error';
+import type { VideoStatus } from '@/types/video.types';
 
 interface VideoThumbnailProps {
   status: VideoStatus;
@@ -42,9 +41,37 @@ export function VideoThumbnail({
   className,
   size = 'md',
 }: VideoThumbnailProps) {
-  const isProcessing = status === 'encoding' || status === 'uploading';
-  const isError = status === 'error';
+  const isProcessing = ['uploading', 'encoding', 'transcribing', 'indexing'].includes(status);
+  const isError = ['failed_encoding', 'failed_transcription', 'failed_indexing'].includes(status);
   const isPending = status === 'pending';
+
+  const getProcessingText = () => {
+    switch (status) {
+      case 'uploading':
+        return 'Uploading...';
+      case 'encoding':
+        return 'Encoding...';
+      case 'transcribing':
+        return 'Transcribing...';
+      case 'indexing':
+        return 'Indexing...';
+      default:
+        return 'Processing...';
+    }
+  };
+
+  const getErrorText = () => {
+    switch (status) {
+      case 'failed_encoding':
+        return 'Encoding failed';
+      case 'failed_transcription':
+        return 'Transcription failed';
+      case 'failed_indexing':
+        return 'Indexing failed';
+      default:
+        return 'Error';
+    }
+  };
 
   return (
     <div
@@ -55,7 +82,8 @@ export function VideoThumbnail({
       )}
     >
       {/* Thumbnail or gradient background */}
-      {thumbnailUrl && status === 'ready' ? (
+      {/* Show thumbnail if available (encoding completed) regardless of transcription/indexing status */}
+      {thumbnailUrl ? (
         <img
           src={thumbnailUrl}
           alt={title || 'Video thumbnail'}
@@ -117,7 +145,7 @@ export function VideoThumbnail({
                 'font-medium text-white',
                 size === 'md' ? 'text-[10px]' : 'text-xs'
               )}>
-                {status === 'uploading' ? 'Uploading...' : 'Preparing video...'}
+                {getProcessingText()}
               </p>
             </div>
           )}
@@ -145,10 +173,10 @@ export function VideoThumbnail({
           <AlertCircle className={cn('text-red-400', iconSizes[size])} />
           {size !== 'sm' && (
             <p className={cn(
-              'mt-1 font-medium text-red-400',
+              'mt-1 font-medium text-red-400 text-center px-1',
               size === 'md' ? 'text-[10px]' : 'text-xs'
             )}>
-              Error
+              {getErrorText()}
             </p>
           )}
         </div>
