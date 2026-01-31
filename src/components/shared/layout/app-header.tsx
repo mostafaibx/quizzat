@@ -5,6 +5,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { useTranslations, useLocale } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Globe, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { locales, localeNames, type Locale } from '@/i18n/config';
 
@@ -33,10 +34,10 @@ export function AppHeader() {
     .slice(0, 2) || '?';
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
-      {/* Main Header - Taller for better accessibility */}
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
+      {/* Main Header */}
       <div className="container flex h-16 items-center justify-between px-4 lg:px-6">
-        {/* Logo - Larger and clearer */}
+        {/* Logo */}
         <Link
           href="/"
           className="flex items-center gap-3 font-bold text-xl hover:opacity-80 transition-opacity"
@@ -47,9 +48,9 @@ export function AppHeader() {
           <span className="hidden sm:inline">{t('appName')}</span>
         </Link>
 
-        {/* Desktop Navigation - Larger touch targets */}
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-2">
-          {/* Language Switcher - Always visible with text */}
+          {/* Language Switcher */}
           <Button
             variant="outline"
             size="default"
@@ -57,7 +58,7 @@ export function AppHeader() {
             className="gap-2 min-w-[120px] h-10"
             aria-label={`Switch to ${localeNames[otherLocale]}`}
           >
-            <GlobeIcon className="h-5 w-5" />
+            <Globe className="h-5 w-5" />
             <span className="font-medium">{localeNames[otherLocale]}</span>
           </Button>
 
@@ -71,10 +72,10 @@ export function AppHeader() {
             </div>
           ) : session?.user ? (
             <div className="flex items-center gap-4">
-              {/* User Info - More prominent */}
+              {/* User Info */}
               <div className="flex items-center gap-3">
                 <div
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-base font-semibold"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary text-base font-semibold ring-2 ring-primary/20 transition-all hover:ring-primary/40"
                   aria-hidden="true"
                 >
                   {userInitials}
@@ -85,14 +86,14 @@ export function AppHeader() {
                 </div>
               </div>
 
-              {/* Sign Out - With visible text */}
+              {/* Sign Out */}
               <Button
                 variant="outline"
                 size="default"
                 onClick={() => signOut({ callbackUrl: '/' })}
-                className="gap-2 h-10"
+                className="gap-2 h-10 transition-all hover:bg-destructive hover:text-destructive-foreground"
               >
-                <LogOutIcon className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
                 <span className="hidden lg:inline">{tNav('logout')}</span>
               </Button>
             </div>
@@ -108,7 +109,7 @@ export function AppHeader() {
           )}
         </nav>
 
-        {/* Mobile Menu Button - Larger touch target */}
+        {/* Mobile Menu Button */}
         <div className="flex md:hidden items-center gap-1">
           <Button
             variant="ghost"
@@ -117,7 +118,7 @@ export function AppHeader() {
             className="h-11 w-11 p-0"
             aria-label={`Switch to ${localeNames[otherLocale]}`}
           >
-            <GlobeIcon className="h-6 w-6" />
+            <Globe className="h-6 w-6" />
           </Button>
 
           <Button
@@ -129,17 +130,17 @@ export function AppHeader() {
             aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
-              <CloseIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             ) : (
-              <MenuIcon className="h-6 w-6" />
+              <Menu className="h-6 w-6" />
             )}
           </Button>
         </div>
       </div>
 
-      {/* Mobile Menu - Larger text and touch targets */}
+      {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t bg-background">
+        <div className="md:hidden border-t bg-background animate-in slide-in-from-top-2">
           <div className="container px-4 py-6 space-y-6">
             {status === 'loading' ? (
               <div className="flex items-center gap-4">
@@ -151,10 +152,10 @@ export function AppHeader() {
               </div>
             ) : session?.user ? (
               <>
-                {/* User Info - Larger for mobile */}
+                {/* User Info */}
                 <div className="flex items-center gap-4 pb-6 border-b">
                   <div
-                    className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-lg font-semibold"
+                    className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-lg font-semibold ring-2 ring-primary/20"
                     aria-hidden="true"
                   >
                     {userInitials}
@@ -165,7 +166,7 @@ export function AppHeader() {
                   </div>
                 </div>
 
-                {/* Sign Out - Large button */}
+                {/* Sign Out */}
                 <Button
                   variant="outline"
                   size="lg"
@@ -175,7 +176,7 @@ export function AppHeader() {
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <LogOutIcon className="h-5 w-5" />
+                  <LogOut className="h-5 w-5" />
                   {tNav('logout')}
                 </Button>
               </>
@@ -197,66 +198,5 @@ export function AppHeader() {
         </div>
       )}
     </header>
-  );
-}
-
-function LogOutIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-      />
-    </svg>
-  );
-}
-
-function GlobeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
-
-function MenuIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  );
-}
-
-function CloseIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
   );
 }

@@ -10,7 +10,7 @@
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "",
     "R2_BUCKET_NAME": "quizat-files",
-    "R2_PUBLIC_URL": ""
+    "R2_PUBLIC_URL": "https://pub-2a32b4766202448b8c8db70afa0f609f.r2.dev"
     // GCP_PROJECT_ID, GCP_PUBSUB_TOPIC, GCP_SERVICE_ACCOUNT_KEY, ENCODING_WEBHOOK_SECRET
     // should be set via wrangler secret for security
   },
@@ -63,7 +63,8 @@
     "preview": {
       "name": "quizat-preview",
       "vars": {
-        "R2_BUCKET_NAME": "quizat-files-preview"
+        "R2_BUCKET_NAME": "quizat-files-preview",
+        "R2_PUBLIC_URL": "https://pub-2a32b4766202448b8c8db70afa0f609f.r2.dev"
       },
       "d1_databases": [
         {
@@ -95,7 +96,8 @@
     "production": {
       "name": "quizat",
       "vars": {
-        "R2_BUCKET_NAME": "quizat-files"
+        "R2_BUCKET_NAME": "quizat-files",
+        "R2_PUBLIC_URL": "https://pub-2a32b4766202448b8c8db70afa0f609f.r2.dev"
       },
       "d1_databases": [
         {

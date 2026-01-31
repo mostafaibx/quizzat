@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { videosRpc, type Video } from '@/lib/rpc';
 import { VIDEO_FAILED_STATUSES, type VideoFailedStatus } from '@/types/video.types';
+import { VideoPlayer } from '@/components/features/videos/player';
 
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -135,15 +136,13 @@ export default function VideoDetailPage() {
           <div className="lg:col-span-2">
             <Card>
               <CardContent className="p-0">
-                {video.status === 'ready' && video.playback ? (
-                  <div className="aspect-video bg-black rounded-t-lg overflow-hidden">
-                    <iframe
-                      src={video.playback.iframe}
-                      className="h-full w-full"
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
+                {video.status === 'ready' && video.playback?.variants?.length ? (
+                  <VideoPlayer
+                    variants={video.playback.variants}
+                    defaultQuality={video.playback.defaultQuality}
+                    thumbnail={video.playback.thumbnail}
+                    className="rounded-t-lg"
+                  />
                 ) : (
                   <div className="aspect-video bg-muted rounded-t-lg flex flex-col items-center justify-center gap-3">
                     {['encoding', 'transcribing', 'indexing'].includes(video.status) ? (
