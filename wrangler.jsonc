@@ -94,7 +94,7 @@
       ]
     },
     "production": {
-      "name": "quizat",
+      "name": "quizzat",
       "vars": {
         "R2_BUCKET_NAME": "quizat-files",
         "R2_PUBLIC_URL": "https://pub-2a32b4766202448b8c8db70afa0f609f.r2.dev"
